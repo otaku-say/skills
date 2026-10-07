@@ -1,0 +1,87 @@
+name: Sync ish-toolbox tools
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/ish-toolbox-tools-tree.sha'
+      - '.github/workflows/sync-tools.yml'
+      - 'tools/SKILL.md'
+      - 'tools/scripts/**'
+      - 'tools/references/**'
+      - 'README.md'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ish-toolbox-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check upstream tools tree
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth=1 --filter=blob:none --no-checkout \
+            https://github.com/otaku-say/ish-toolbox.git /tmp/ish-toolbox
+          tree="$(git -C /tmp/ish-toolbox rev-parse 'HEAD:tools')"
+          printf 'tree=%s\n' "$tree" >> "$GITHUB_OUTPUT"
+          previous="$(cat .github/ish-toolbox-tools-tree.sha 2>/dev/null || true)"
+          if [[ "$tree" == "$previous" ]]; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo '上游 tools/ tree 未变化。'
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+            echo '检测到上游 tools/ tree 变化。'
+          fi
+
+      - name: Fetch upstream tools directory
+        if: steps.upstream.outputs.changed == 'true'
+        run: |
+          git -C /tmp/ish-toolbox sparse-checkout init --cone
+          git -C /tmp/ish-toolbox sparse-checkout set tools scripts
+          git -C /tmp/ish-toolbox checkout --force HEAD
+
+      - name: Verify upstream files and binaries
+        if: steps.upstream.outputs.changed == 'true'
+        run: |
+          sh tools/scripts/verify.sh /tmp/ish-toolbox/tools
+          sh /tmp/ish-toolbox/scripts/doctor.sh amd64
+          sh /tmp/ish-toolbox/scripts/doctor.sh arm64
+
+      - name: Replace mirrored tools and documentation
+        if: steps.upstream.outputs.changed == 'true'
+        run: |
+          find tools -mindepth 1 -maxdepth 1 \
+            ! -name SKILL.md ! -name scripts ! -name references \
+            -exec rm -rf -- {} +
+          cp -a /tmp/ish-toolbox/tools/. tools/
+          find tools -type f -name USAGE.md -exec sed -i \
+            's|/[^[:space:]`]*ish-toolbox/bin/install\\.sh|tools 技能目录的 scripts/install.sh|g' {} +
+          (cd tools && find . -mindepth 2 -maxdepth 2 -name USAGE.md -print \
+            | sort | sed 's|^\\./||' | xargs sha256sum > DOCS.sha256)
+          printf '%s\n' '${{ steps.upstream.outputs.tree }}' > .github/ish-toolbox-tools-tree.sha
+          sh tools/scripts/verify.sh tools
+
+      - name: Commit synchronized files
+        if: steps.upstream.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools .github/ish-toolbox-tools-tree.sha
+          if git diff --cached --quiet; then
+            echo '没有工具目录差异。'
+            exit 0
+          fi
+          git commit -m "sync: update ish-toolbox tools"
+          git push
