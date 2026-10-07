@@ -96,7 +96,7 @@ sh "$AIOD_SKILL_DIR/bin/aiod-cli" br-info
 sh "$AIOD_SKILL_DIR/bin/aiod-cli" br-snapshot --interactive
 ```
 
-桌面镜像可能需要 `/opt/gem/browser-launch.sh` 启动 Chromium。列出目标时遇到 `br-*` 503，通常表示浏览器进程未运行。不要根据过期文档猜测选择器或元素引用。
+桌面镜像可能需要镜像提供的启动器启动 Chromium。列出目标时遇到 `br-*` 503，通常表示浏览器进程未运行。不要根据过期文档猜测选择器或元素引用。
 
 ## 安全和故障处理
 
