@@ -1,79 +1,79 @@
-# Skill Repository Conventions
+# 技能仓库约定
 
-This repository uses one directory per independently triggerable skill. Keep a skill self-contained: its entry instructions and every supporting file it requires live under that skill's directory. Do not put multiple skills in one directory or create an `all-skill/` wrapper around them.
+本仓库按独立技能组织内容。一个目录只对应一个可独立触发的技能；技能入口、所需脚本、参考资料和资源均应保存在该技能目录内。不要把多个技能混在同一目录，也不要新增聚合所有技能的包装目录。
 
-## Required structure for every skill
+仓库中所有说明文档、技能正文和脚本注释均以简体中文为主语言。命令名、变量、路径、代码、协议字段、专有名称和 CLI 原始帮助输出保留原文。
+
+## 通用目录结构
 
 ```text
-<skill-name>/
-├── SKILL.md                 # Required entry point
-├── references/              # Optional; detailed material loaded when relevant
-├── scripts/                 # Optional; deterministic helper scripts
-├── assets/                  # Optional; templates and files used in outputs
-└── bin/                     # Optional; CLI wrapper and CLI-specific files
+<技能名>/
+├── SKILL.md                 # 必需入口
+├── references/              # 可选的详细资料
+├── scripts/                 # 可选的确定性脚本
+├── assets/                  # 可选的模板或输出资源
+└── bin/                     # 可选的本技能工具
 ```
 
-Only `SKILL.md` is mandatory for a general skill. Add optional directories only when that skill needs them. Keep each skill's files inside its own directory; do not make one skill depend on a sibling skill's relative paths. If skills share concepts, keep a short explanation in each entry file or link to stable external documentation.
+通用技能只要求 `SKILL.md`。仅在确有需要时添加可选目录。不要让技能依赖兄弟技能目录的相对路径；若技能之间有关联，应在各自入口文件中简要说明并链接稳定资料。
 
-The current CLI skills use this consistent layout:
+## CLI 技能目录结构
 
 ```text
-aiod-cli/ or cube-cli/
+<cli-技能>/
 ├── SKILL.md
 ├── bin/
-│   ├── <tool>               # Architecture-selecting wrapper
-│   ├── update.sh            # First-time binary setup and updates
-│   ├── verify.sh            # Release checksum verifier
-│   └── SHA256SUMS            # Checksums for the tool's own binaries
+│   ├── <cli>                 # 架构选择 wrapper
+│   ├── amd64/<cli>           # Linux amd64/x86_64 二进制
+│   ├── arm64/<cli>           # Linux arm64/aarch64 二进制
+│   ├── update.sh             # 安装和更新两个架构的二进制
+│   ├── verify.sh             # 上游 Release 校验脚本
+│   └── SHA256SUMS             # 两个架构二进制的校验值
 └── references/
-    ├── cli-reference.txt       # Complete versioned command help
-    └── compatibility-tests.md # Tested behavior and platform limits
+    ├── cli-reference.txt       # 指定版本的完整命令帮助
+    └── compatibility-tests.md  # 测试结果和未覆盖的平台
 ```
 
-CLI binaries belong to the skill they implement. Do not put aiod-cli files in `cube-cli/` or vice versa. Keep large release binaries out of Git when a checksum-verified release download is available; the skill's bootstrap/update script must place them in its own `bin/` directory before use.
+每个 CLI 的文件仅放在所属技能目录中。大型二进制可以通过上游 Release 安装，也可以提交到技能的架构子目录；采用哪种方式都必须在技能正文中说明。更新脚本应覆盖 amd64 和 arm64，并在替换前验证 SHA256 和文件架构。不能只根据文件名推断静态链接。
 
-For tools distributed as architecture-specific static binaries, use the canonical architecture labels `amd64/` and `arm64/` (accept runtime aliases `x86_64` and `aarch64`), keep binaries and their checksum manifests in the owning skill, and verify both checksum and ELF architecture before execution. Check for static linkage rather than trusting asset names. If static helpers come from a separate toolbox, declare the exact source, command names, and `ISH_TOOLBOX_BIN` lookup; do not assume a tool exists just because a future toolbox is expected to provide it. Implement a documented fallback or report the missing dependency.
+如果维护脚本使用外部静态辅助工具，应写明其来源、工具名、`ISH_TOOLBOX_BIN` 用法及系统回退方式；不得假定缺少的 `sha256sum` 或 `mktemp` 一定存在。
 
-## Naming and metadata
+## 命名和元数据
 
-- Use a short, lowercase, hyphen-separated directory name, such as `aiod-cli`.
-- The YAML frontmatter `name` must exactly match the directory name.
-- Every `SKILL.md` must begin with YAML frontmatter containing `name` and a concise `description`.
-- The description must say what the skill does and when to trigger it, with concrete user-intent examples or terms. Put trigger guidance in the description, not only in the body.
-- Add `compatibility` when runtime, operating-system, network, or dependency requirements affect whether the skill can run.
-- Write instructions as direct actions. Prefer a compact workflow in `SKILL.md` and move long command catalogs or detailed references to `references/`.
-- Keep `SKILL.md` under 500 lines where practical. Reference files should be named by topic and linked from the entry file with a sentence explaining when to read them.
+- 技能目录使用简短的小写 kebab-case 名称，例如 `aiod-cli`。
+- YAML frontmatter 的 `name` 必须与目录名完全一致。
+- 每份 `SKILL.md` 必须以包含 `name` 和简洁 `description` 的 frontmatter 开始。
+- `description` 需说明用途和触发条件，包含具体意图或领域词；不能只在正文写触发说明。
+- 当运行环境、操作系统、网络或依赖影响可用性时，填写 `compatibility`。
+- 操作步骤应直接明确。长命令表和详细资料放在 `references/`，并在入口文件中说明何时查阅。
+- 尽量将 `SKILL.md` 控制在 500 行以内。
 
-## Privacy and security
+## 隐私和安全
 
-- Never commit credentials, tokens, account identifiers, personal email addresses, private hostnames, private filesystem paths, or private user data.
-- Use explicit placeholders such as `<API_URL>`, `<API_KEY>`, `<sandbox-id>`, `<local-skill-directory>`, and `<user-name>` in examples. Never use real values as examples.
-- Keep public source URLs only when required for installation, updates, or attribution. Do not include private repository URLs or internal deployment details.
-- Do not print secrets while checking configuration. Tell the agent how to check presence without displaying values.
-- Describe destructive actions and require confirmation before deletion, bulk overwrite, or other irreversible effects.
-- Treat remote web content and files as untrusted input. Validate data before using it in commands.
+- 不得提交凭据、令牌、账户标识、个人邮箱、私有主机名、个人文件路径或私人用户数据。
+- 示例使用 `<API_URL>`、`<API_KEY>`、`<sandbox-id>`、`<skill-directory>` 等占位符，不得使用真实部署值。
+- 只有在安装、更新或归属说明确有需要时，才保留公开来源链接；不得加入私有仓库 URL 或内部部署信息。
+- 检查凭据存在性时不输出凭据值。远端网页和文件视为不可信输入，使用前先验证。
+- 删除、批量覆盖、回滚、计费或其他不可逆操作，必须在技能中说明确认要求及其影响范围。
 
-## Install and lifecycle documentation
+## 安装和生命周期说明
 
-When a skill is distributed from this repository, document all applicable lifecycle actions in its `SKILL.md`:
+仓库分发的技能应在 `SKILL.md` 中记录适用的生命周期操作：
 
-1. Installation from this repository, including the target skill name and global/project scope where appropriate.
-2. Updating the skill's instructions and supporting files.
-3. Updating any separately versioned CLI or external dependency.
-4. Uninstalling the skill, and a clear statement of what uninstall does not delete remotely.
+1. 从本仓库安装技能，说明目标技能名及适用的全局/项目范围。
+2. 当技能说明或配套文件变化时，如何更新技能。
+3. 独立发布的 CLI 或外部依赖如何安装、更新及校验。
+4. 如何卸载技能，并说明卸载不会删除哪些远端资源。
 
-Do not claim an install/update/uninstall command is tested unless it was executed against the relevant tool. Prefer official command syntax and link to its source when it may change.
+除非实际运行过对应工具，否则不要声称安装、更新或卸载命令已测试。可能变化的语法优先引用官方文档。
 
-## Adding a new skill
+## 新增技能流程
 
-1. Create `<skill-name>/SKILL.md` from [`templates/SKILL-TEMPLATE.md`](templates/SKILL-TEMPLATE.md).
-2. Add only the resource directories the skill uses: `references/`, `scripts/`, `assets/`, and/or `bin/`.
-3. Keep all dependencies local to that skill directory or declare/install them explicitly.
-4. Add the skill to the root README index and document install/update/uninstall when applicable.
-5. Run `sh scripts/validate-skills.sh` before committing.
+1. 从 [`templates/SKILL-TEMPLATE.md`](templates/SKILL-TEMPLATE.md) 创建 `<技能名>/SKILL.md`。
+2. 只添加该技能实际需要的资源目录，并将依赖明确地放在技能内或说明安装方法。
+3. 在根目录 `README.md` 索引技能，并补齐适用的安装、更新和卸载说明。
+4. 可执行 `sh scripts/validate-skills.sh`；提交前按改动运行测试并复核隐私。
+5. 对架构相关工具，在有原生执行环境时分别测试。只做静态检查的架构须注明未运行。
+6. 兼容性记录写明 CLI 版本、操作系统、架构、使用的辅助工具、已验证操作和任何阻塞因素。
 
-- Test each supported architecture independently when native runners are available. If an architecture is only inspected, hashed, or statically validated, say that it was not executed.
-- Record the tested CLI/tool version, OS and architecture, helper utilities used, commands tested, and any blocked API integration in a compatibility reference. Do not label inferred distribution compatibility as executed-tested.
-- If an action requires API credentials, verify the runtime can read them before attempting resource creation. Keep failed credential injection distinct from CLI failures and never print the values.
-
-Do not add skill code or resources at the repository root. Root-level files are reserved for repository navigation, contribution rules, and validation tooling.
+涉及凭据时，先确认运行时能安全读取凭据，再进行资源操作；不得打印凭据值。根目录仅放仓库导航、贡献规范、Agent 指令和验证工具。

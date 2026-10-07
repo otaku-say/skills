@@ -1,49 +1,46 @@
-# Agent Skills
+# Agent 技能
 
-Independently installable agent skills. Each skill has its own trigger description, entry instructions, and supporting files. See [CONTRIBUTING.md](CONTRIBUTING.md) for the required structure and rules for future additions.
+本仓库存放可独立安装的 Agent 技能。所有技能正文、参考说明、仓库文档和脚本注释均以简体中文为主语言；命令名、代码标识、协议字段、专有名称和 CLI 原始帮助输出保留原文。
 
-## Skills
+## 技能索引
 
-| Skill | Purpose | Boundary |
+| 技能 | 用途 | 范围边界 |
 |---|---|---|
-| [`aiod-cli/`](aiod-cli/SKILL.md) | Operate inside an existing CubeSandbox: commands, files, sessions, PTYs, code, browser, desktop, and MCP Hub | Data plane only; it does not create or remove sandboxes |
-| [`cube-cli/`](cube-cli/SKILL.md) | Manage CubeSandbox lifecycle, templates, snapshots, volumes, and ports | Control plane only; use aiod-cli for in-sandbox work |
+| [`aiod-cli/`](aiod-cli/SKILL.md) | 在已有 CubeSandbox 中执行命令、操作文件、会话、PTY、代码、浏览器、桌面和 MCP Hub | 仅负责数据面，不负责创建或销毁沙箱 |
+| [`cube-cli/`](cube-cli/SKILL.md) | 管理 CubeSandbox 生命周期、模板、快照、持久卷和端口 | 负责控制面；沙箱内部操作使用 aiod-cli |
 
-Install one or both skills globally with the Skills CLI:
+使用 Skills CLI 安装单个或两个技能：
 
 ```sh
 npx skills add otaku-say/skills --skill aiod-cli -g
 npx skills add otaku-say/skills --skill cube-cli -g
 ```
 
-Update an installed skill with `npx skills update <skill-name> -g`. Remove one with `npx skills remove --global <skill-name>`. Each skill documents how to download/update its separate CLI binaries in its own directory.
+更新已安装技能：`npx skills update <skill-name> -g`。卸载技能：`npx skills remove --global <skill-name>`。每个 CLI 技能均在自己的目录中保留 wrapper、两个架构的二进制、更新脚本和校验值。
 
-## Standard layout
+## 目录结构
 
-Every skill must have a `<skill-name>/SKILL.md` entry point whose frontmatter `name` matches its directory. Supporting directories are added only when needed:
-
-```text
-<skill-name>/
-├── SKILL.md       # Required
-├── references/    # Optional: longer documentation
-├── scripts/       # Optional: deterministic helpers
-├── assets/        # Optional: templates and output resources
-└── bin/           # Optional: that skill's own CLI and maintenance tools
-```
-
-The current CLI skills follow the same structure:
+每个技能必须有 `<技能名>/SKILL.md`，且 frontmatter 的 `name` 必须与目录名一致。按需添加 `references/`、`scripts/`、`assets/` 和 `bin/` 等目录。CLI 技能结构如下：
 
 ```text
-aiod-cli/ or cube-cli/
+<cli-技能>/
 ├── SKILL.md
-├── bin/           # Wrapper, updater, verifier, and tool-specific checksums
-└── references/    # Versioned CLI help and compatibility/test results
+├── bin/
+│   ├── <cli>             # 架构选择 wrapper
+│   ├── amd64/<cli>       # x86_64 Linux 二进制
+│   ├── arm64/<cli>       # aarch64 Linux 二进制
+│   ├── update.sh
+│   ├── verify.sh
+│   └── SHA256SUMS
+└── references/
+    ├── cli-reference.txt
+    └── compatibility-tests.md
 ```
 
-CLI binaries are fetched into their own skill's `bin/` directory from the versioned upstream Release and verified by checksum. They are not duplicated in Git. Maintenance scripts prefer static `curl`, `gawk`, and `openssl` from [`ish-toolbox`](https://github.com/otaku-say/ish-toolbox) when `ISH_TOOLBOX_BIN` points to its installed binary directory; current fallback behavior and the toolbox's missing standalone tools are documented in each skill. Examples use placeholders for deployment-specific URLs, IDs, paths, and credentials; never commit secrets or private infrastructure values.
-
-Validate the repository before committing:
+维护新技能或修改仓库规则时，先阅读根目录 [`AGENTS.md`](AGENTS.md) 和 [`CONTRIBUTING.md`](CONTRIBUTING.md)。提交前运行：
 
 ```sh
 sh scripts/validate-skills.sh
 ```
+
+测试范围及未覆盖平台见各技能目录下的 `references/compatibility-tests.md`。

@@ -1,40 +1,39 @@
 ---
-name: <skill-name>
+name: <技能名>
 description: >-
-  Use this skill whenever the user asks to <primary task>. Trigger on requests
-  involving <specific intent or domain terms>. It <main action or outcome>.
-compatibility: <runtime, tools, network, or OS requirements; omit if none>
+  当用户请求 <主要任务> 时使用本技能。适用于 <具体意图或领域关键词>，负责 <主要操作或结果>。
+compatibility: <运行环境、工具、网络或操作系统要求；没有则删除此字段>
 ---
 
-# <Skill Title>
+# <技能标题>
 
-In one short paragraph, state the skill's boundary and the result it helps produce. Name related workflows only to distinguish scope; keep this skill self-contained.
+用一段简短说明讲清技能的职责边界和能交付的结果。相关流程只用于说明边界，技能本身应保持自包含。
 
-## Workflow
+## 工作流程
 
-1. Confirm the user's target and constraints from their request.
-2. Inspect the relevant current state before acting; do not guess identifiers or options.
-3. Perform the smallest task-scoped operation and verify its result.
-4. Ask before irreversible changes or any action requiring confirmation.
+1. 从请求中确认目标和限制。
+2. 检查相关现状，不猜测标识符或选项。
+3. 执行范围最小的操作，并核验结果。
+4. 对不可逆操作或其他需要确认的操作先征求用户同意。
 
-## Usage
+## 用法
 
-Show concise examples with placeholders only:
+只使用占位符编写简短示例：
 
 ```sh
-<command> --target=<resource-id>
+<命令> --target=<资源标识>
 ```
 
-Move long command references to `references/` and explain when to read each one.
+较长的命令参考放入 `references/`，并说明何时查阅。
 
-## Safety and troubleshooting
+## 安全和故障排查
 
-Describe sensitive inputs, untrusted data, destructive actions, and the most likely failure cases. Never put real credentials or private deployment values in this file.
+说明敏感输入、不可信数据、破坏性操作和常见失败情况。不要写入真实凭据或私有部署值。
 
-## Install, update, and uninstall
+## 安装、更新和卸载
 
-Document the verified commands for installing this skill, updating the skill files, updating any separate tool binaries, and removing the skill. State which remote resources are unaffected by uninstall. Use placeholders where an owner, path, credential, or deployment value is user-specific.
+说明安装本技能、更新技能文件、更新独立工具二进制以及卸载的命令。说明卸载不影响哪些远端资源。所有用户专属值使用占位符。
 
-## Resources
+## 技能内资源
 
-List only files that exist in this skill directory and describe when the agent should load or run them.
+只列出当前技能目录中确实存在的文件，并说明何时查阅或运行。
