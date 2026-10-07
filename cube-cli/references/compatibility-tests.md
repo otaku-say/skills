@@ -1,23 +1,23 @@
-# Compatibility and Test Results
+# 兼容性与测试结果
 
-Tested CLI release: `0.2.0` for both tools.
+本次测试的 CLI 版本：`0.2.0`。
 
-| Test | Result |
+| 测试项 | 结果 |
 |---|---|
-| Linux `amd64`/`x86_64` executable format | Passed: statically linked musl ELF binaries |
-| Linux `arm64`/`aarch64` executable format | Passed: static ELF architecture and Release SHA256 checked; not executed on this host |
-| `update.sh --force` | Passed on x86_64; downloaded both architecture assets and verified their Release checksums |
-| `verify.sh` | Passed for both architecture assets against the upstream Release manifest |
-| POSIX shell syntax | Passed with the host `/bin/sh` |
-| Version and `help all` | Passed |
-| Per-command help | Passed: 61 entries including aliases |
-| `ish-toolbox` helpers | Passed using its x86_64 static `curl`, `gawk`, and `openssl` executables |
-| Toolbox architecture/integrity doctor | Passed for both `amd64` and `arm64`; this verifies hashes, ELF architecture, and static linkage, but does not execute arm64 programs |
-| Read-only/live control-plane calls | Passed: health, template selection, sandbox list/detail/logs/ports |
-| Sandbox lifecycle | Passed: create, set idle timeout, pause, resume, and confirmed deletion of the temporary test sandbox |
-| Snapshots | `snap-ls` returned empty after the pause/resume test |
-| Skills CLI install/update/remove | Not executed; command syntax is documented, but those global lifecycle commands were not run |
+| Linux `amd64`/`x86_64` 二进制 | 通过：静态链接的 musl ELF；已在 x86_64 Linux 上执行 |
+| Linux `arm64`/`aarch64` 二进制 | 通过：已检查 ELF 架构、静态链接和 Release SHA256；未在本机执行 |
+| `update.sh --force` | 通过：下载两个架构的 Release 文件并校验 SHA256 |
+| `verify.sh` | 通过：两个架构文件均与上游 Release 清单一致 |
+| POSIX Shell 语法 | 通过：使用本机 `/bin/sh` 检查 |
+| 版本与 `help all` | 通过 |
+| 单命令帮助 | 通过：61 个入口，含别名 |
+| `ish-toolbox` 辅助工具 | 通过：使用其 x86_64 静态 `curl`、`gawk`、`openssl` |
+| toolbox 架构与完整性 doctor | amd64、arm64 均通过哈希、ELF 架构和静态链接检查；未实际执行 arm64 程序 |
+| 控制面操作 | 通过：健康检查、模板选择、沙箱列表/详情/日志/端口 |
+| 沙箱生命周期 | 通过：创建、设置空闲超时、暂停、恢复，并在确认后删除临时测试沙箱 |
+| 快照 | 暂停/恢复后运行 `snap-ls`，结果为空；未测试独立快照、克隆、回滚或持久卷操作 |
+| Skills CLI 安装/更新/卸载 | 未执行；这里只记录命令用法，不声称这些生命周期命令已经实测 |
 
-The current `ish-toolbox` repository does not contain standalone `sha256sum` or `mktemp` executables. The maintenance scripts therefore prefer its `curl`, `gawk`, and `openssl`, fall back to system `awk`/`sha256sum`, and use a private PID-scoped directory made with `mkdir` instead of requiring `mktemp`.
+当前 `ish-toolbox` 不含独立的 `sha256sum` 或 `mktemp`。维护脚本优先使用其中的 `curl`、`gawk`、`openssl`，并回退到系统 `awk`/`sha256sum`；临时目录使用基于进程 ID 的 `mkdir` 创建，不依赖 `mktemp`。
 
-The builds are intended for mainstream Linux distributions using either glibc or musl because the CLI ELF binaries are statically linked. This run executed only on the available x86_64 Linux host; sandbox lifecycle tests used an Ubuntu 22.04 x86_64 template. Debian/Ubuntu, Fedora/RHEL, Arch, Alpine, and native arm64 runtime behavior still need testing on those hosts before claiming those matrix cells are executed-tested.
+静态 musl 构建的目标是兼容使用 glibc 或 musl 的主流 Linux 发行版。本次只在可用的 x86_64 Linux 主机执行 CLI；控制面生命周期测试使用 Ubuntu 22.04 x86_64 模板。Debian/Ubuntu、Fedora/RHEL、Arch、Alpine 等发行版的独立运行验证，以及原生 arm64 运行验证，仍未完成；不得将这些平台描述为本次已实测。
