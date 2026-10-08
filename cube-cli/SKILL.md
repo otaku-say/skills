@@ -178,7 +178,7 @@ npx skills remove --global cube-cli
 - main 源包包含 `bin/amd64/cube-cli` 与 `bin/arm64/cube-cli`；安装后仅保留当前架构。
 - `bin/SHA256SUMS` 保存 Release 清单中的当前架构哈希；main 源包初始包含两个架构条目。
 - `scripts/install.sh` 验证、裁剪非当前架构并幂等配置 PATH。
-- `scripts/update.sh` 按安装模式更新当前架构二进制并重新执行安装后处理；`scripts/update-runtime.sh` 用于 Teable 的固定 commit 缓存运行时。
+- `scripts/update.sh` 按安装模式更新当前架构二进制并重新执行安装后处理；`scripts/update-release.sh` 从上游 Release 下载并原子替换（`--force`、`--arch=`，wget 优先、curl 回退）；`scripts/update-runtime.sh` 用于 Teable 的固定 commit 缓存运行时。
 - `scripts/verify.sh` 离线校验当前架构及 SHA256 清单；`scripts/uninstall.sh` 清理 PATH，可通过显式 `--purge-runtime` 清理受管理缓存。
 - [兼容性与测试结果](references/compatibility-tests.md)区分已测试行为与尚未执行的架构/发行版。
 - `references/cli-reference.txt` 保存 CLI 0.2.0 的完整 `help all` 输出；若版本不同，以已安装二进制的帮助为准。

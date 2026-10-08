@@ -26,8 +26,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sh aiod-cli/bin/update.sh --force
-          sh cube-cli/bin/update.sh --force
+          sh aiod-cli/scripts/update-release.sh --force --arch=both
+          sh cube-cli/scripts/update-release.sh --force --arch=both
 
           (cd aiod-cli/bin && sha256sum -c SHA256SUMS)
           (cd cube-cli/bin && sha256sum -c SHA256SUMS)
