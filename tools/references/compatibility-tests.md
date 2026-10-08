@@ -13,14 +13,14 @@
 |---|---|---|
 | amd64/x86_64 | main 包 install/verify/uninstall、46 个工具保留当前架构、PATH 配置幂等，以及新 shell 清理重新带入的 arm64 目录 | 临时目录测试通过 |
 | arm64/aarch64 模拟 | mock `uname -m`；main 包保留 arm64、删除 amd64；新 shell 清理重新带入的 amd64 目录 | 临时目录测试通过；未执行 arm64 二进制 |
-| Teable amd64 | 完整镜像安装 46 个 amd64 工具到 XDG 缓存，校验清单、重复安装、运行 `rg --version`，并清除受管理缓存 | 本地 file:// 二进制夹具通过；未访问公开网络 |
+| Teable amd64 | 三个技能在当前 Teable base 实际安装并验证；检查 46 个工具的持久缓存、校验标记及 aiod-cli/cube-cli/rg/jaq 直接执行；另用本地 file:// 夹具覆盖重复安装与卸载清理 | 通过；跨 sandbox 重建未实际执行 |
 | Teable 下载回退 | 屏蔽 curl/wget，使用 mock `uclient-fetch -O` 下载当前架构运行时 | 通过；未在 OpenWrt 设备实测 |
-| 发行分支 | 完整镜像约 283 KB，含 README、规则文档、三个现有技能和构建资料；本地 bare remote 首次 orphan 发布、无二进制扫描、无变化重跑，以及临时未来技能自动发现 | 通过；未推送公开远端 |
-| Shell 语法 | 本机 `/bin/sh` 检查仓库 shell 脚本 | 通过；BusyBox 不可用，本轮未运行 ash |
+| 发行分支 | 完整镜像约 289 KB，含 README、规则文档、三个现有技能和构建资料；orphan 历史、无架构二进制、main 推送后的公开 teable 自动同步及远端内容校验 | 通过；包大小上限 512000 字节 |
+| Shell 语法 | 本机 `/bin/sh` 与仓库内 amd64 BusyBox ash 检查 shell 脚本；ash 下覆盖三个 Teable 技能的 install/update/verify/uninstall、命令 PATH 解析、幂等配置及异架构清理 | 通过；ash 下载使用本地 file:// 夹具，未在 OpenWrt 设备测试 |
 | arm64 二进制 | 上游哈希、ELF 架构和静态链接检查 | 通过静态检查；未在 arm64 主机运行 |
 | 各目标发行版 | Alpine、Debian、OpenCloudOS、OpenWrt 等 | 未逐发行版测试 |
 
-amd64 测试在当前 Linux 主机执行。arm64 的架构选择用 mock `uname` 验证，但 arm64 程序未被执行。`uclient-fetch` 只以 mock 接口验证参数和传输流程，不能替代 OpenWrt 本机测试。BusyBox/ash 当前环境不可用，因此兼容性声明不包含本轮 ash 运行结果。
+amd64 测试在当前 Linux 主机执行。arm64 的架构选择用 mock `uname` 验证，但 arm64 程序未被执行。`uclient-fetch` 只以 mock 接口验证参数和传输流程，不能替代 OpenWrt 本机测试。BusyBox ash 测试使用仓库捆绑的 amd64 BusyBox，在 x86_64 主机验证脚本语法、PATH 解析和本地 file:// 下载流程；这不等同于 OpenWrt 设备测试。
 
 ## 依赖与边界
 
