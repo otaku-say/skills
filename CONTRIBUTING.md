@@ -74,7 +74,7 @@ wrapper 接受 `x86_64`/`amd64` 与 `aarch64`/`arm64`。main 源包可以同时�
 ## 发行分支
 
 - `main` 保存完整仓库和所有架构二进制；Teable 分支镜像 main 的整个文件树，包括 README、规则文档和所有顶层技能，只剔除技能内名为 `amd64`/`arm64` 的架构目录，完整包上限为 512000 字节。
-- 构建器自动发现含 `SKILL.md` 的顶层技能。新增技能无需维护分支技能名单；若技能带架构二进制，必须将其放入标准架构目录，并让 install/update/verify 根据 `RUNTIME_SOURCE_COMMIT` 从 main 下载、校验当前架构运行时到 `${XDG_CACHE_HOME:-$HOME/.cache}`，不能写入只读技能目录。没有二进制的技能无需运行时标记。
+- 构建器自动发现含 `SKILL.md` 的顶层技能。新增技能无需维护分支技能名单；若技能带架构二进制，必须将其放入标准架构目录，并让 install/update/verify 根据 `RUNTIME_SOURCE_COMMIT` 从 main 下载、校验当前架构运行时到 `${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}/<skill>`。Teable 默认将运行时放在持久 workspace 下；显式设置 `TEABLE_SKILLS_RUNTIME_HOME` 时必须指向持久目录，且不能写入只读技能目录。没有二进制的技能无需运行时标记。
 - Teable 使用独立 orphan 历史。main 每次 push 自动重建并同步公开 `teable` 分支；定时任务若同步上游并修改 main，也在同一次运行中同步。手动触发可使用 `publish` 输入，命令行发布必须显式传 `--push`。
 - 每个工具仍属于 `tools` 这一个技能；其中各工具目录的 `USAGE.md` 是参考资料，不是独立技能。
 

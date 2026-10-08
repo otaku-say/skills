@@ -23,7 +23,7 @@ sh /path/to/installed/tools/scripts/install.sh
 
 main 包含 46 个工具的 amd64 和 arm64 二进制。安装后只保留当前主机架构；Skills 管理器更新技能包时可能重新带入另一架构，因此更新后应运行 `scripts/install.sh`。若遗漏，已有 PATH 启动配置会在下一个 shell 启动时检测并裁剪，不会在每次命令调用时增加 wrapper 开销。
 
-Teable 使用 `teable` 分支的轻量包。该包不含二进制；安装脚本从 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 逐个下载当前架构文件，先校验 SHA256 再保存到 `${XDG_CACHE_HOME:-$HOME/.cache}/ish-toolbox-runtime/`，不写入只读的技能目录。不会下载或保留另一架构。分支构建及 512000 字节限制见仓库 `repository/branch-profiles/`。
+Teable 使用 `teable` 分支的轻量包。该包不含二进制；安装脚本从 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 逐个下载当前架构文件，先校验 SHA256 再保存到 `${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}/ish-toolbox/`，不写入只读的技能目录。默认位置位于 Teable 持久 workspace 下，跨 sandbox 重建保留；显式设置 `TEABLE_SKILLS_RUNTIME_HOME` 时必须指向持久目录。不会下载或保留另一架构。分支构建及 512000 字节限制见仓库 `repository/branch-profiles/`。
 
 ## 更新与验证
 

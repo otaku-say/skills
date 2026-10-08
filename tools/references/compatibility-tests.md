@@ -24,6 +24,6 @@ amd64 测试在当前 Linux 主机执行。arm64 的架构选择用 mock `uname`
 
 ## 依赖与边界
 
-main 包的安装和验证不需要下载器或 `tar`。Teable 首次安装/更新将当前架构二进制写入 `${XDG_CACHE_HOME:-$HOME/.cache}/ish-toolbox-runtime/<commit>/`，不修改只读技能目录，按优先级使用 PATH 中的 `curl`、`wget` 或 OpenWrt `uclient-fetch`；SHA256 校验使用 `sha256sum`、BusyBox `sha256sum` 或 `openssl`。临时目录通过基于进程 ID 的 `mkdir` 创建，不依赖 `mktemp`。直接将工具箱二进制目录加入 PATH，shell 启动配置会检查并清理另一架构，不会为每个命令增加 wrapper。
+main 包的安装和验证不需要下载器或 `tar`。Teable 首次安装/更新将当前架构二进制写入 `${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}/ish-toolbox/<commit>/`，不修改只读技能目录。默认位置位于持久 workspace 下，跨 sandbox 重建保留；显式设置 `TEABLE_SKILLS_RUNTIME_HOME` 时必须指向持久目录。下载按优先级使用 PATH 中的 `curl`、`wget` 或 OpenWrt `uclient-fetch`；SHA256 校验使用 `sha256sum`、BusyBox `sha256sum` 或 `openssl`。临时目录通过基于进程 ID 的 `mkdir` 创建，不依赖 `mktemp`。直接将工具箱二进制目录加入 PATH，shell 启动配置会检查并清理另一架构，不会为每个命令增加 wrapper。
 
 工具级兼容性、环境变量和系统服务要求以各自的 `USAGE.md` 为准。静态链接并不能保证每个工具在所有沙箱策略下都能访问网络、证书或系统服务。

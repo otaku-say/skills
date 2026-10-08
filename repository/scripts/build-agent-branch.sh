@@ -93,6 +93,16 @@ if [ "$MIRROR_TREE" = true ]; then
         || { printf '%s 的更新脚本不支持固定运行时来源。\n' "$skill_name" >&2; exit 1; }
       grep -Fq RUNTIME_SOURCE_COMMIT "$skill_dir/scripts/verify.sh" \
         || { printf '%s 的验证脚本不支持缓存运行时。\n' "$skill_name" >&2; exit 1; }
+      if ! grep -Fq 'TEABLE_SKILLS_RUNTIME_HOME' "$skill_dir/scripts/update-runtime.sh" 2>/dev/null \
+        && ! grep -Fq 'TEABLE_SKILLS_RUNTIME_HOME' "$skill_dir/scripts/update.sh"; then
+        printf '%s 的更新脚本未配置 Teable 运行时目录。\n' "$skill_name" >&2
+        exit 1
+      fi
+      if ! grep -Fq '$HOME/workspace/.cache/otaku-skills-runtime' "$skill_dir/scripts/update-runtime.sh" 2>/dev/null \
+        && ! grep -Fq '$HOME/workspace/.cache/otaku-skills-runtime' "$skill_dir/scripts/update.sh"; then
+        printf '%s 的运行时默认目录不在 Teable 持久 workspace 中。\n' "$skill_name" >&2
+        exit 1
+      fi
       printf '%s\n' "$SOURCE_COMMIT" > "$skill_dir/RUNTIME_SOURCE_COMMIT"
       for arch_dir in $arch_dirs; do
         case "$arch_dir" in "$skill_dir"/*) ;; *) printf '架构目录越界：%s\n' "$arch_dir" >&2; exit 1 ;; esac
