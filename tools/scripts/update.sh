@@ -12,7 +12,6 @@ fail() {
 [ -n "${HOME:-}" ] || fail "请先设置 HOME"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -L)"
 SKILL_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -L)"
-SKILLS_DIR="$(CDPATH= cd -- "$SKILL_DIR/.." && pwd -L)"
 
 case "$(uname -m)" in
   x86_64|amd64) HOST_ARCH=amd64; OTHER_ARCH=arm64 ;;
@@ -118,7 +117,9 @@ if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
   IFS= read -r SOURCE_COMMIT < "$SKILL_DIR/RUNTIME_SOURCE_COMMIT"
   case "$SOURCE_COMMIT" in *[!0-9a-fA-F]*|'') fail "RUNTIME_SOURCE_COMMIT 格式无效" ;; esac
   [ "${#SOURCE_COMMIT}" -eq 40 ] || fail "RUNTIME_SOURCE_COMMIT 必须是 40 位 Git commit"
-  RUNTIME_DIR="$SKILLS_DIR/.ish-toolbox-runtime/$SOURCE_COMMIT"
+  CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+  case "$CACHE_HOME" in /*) ;; *) fail "XDG_CACHE_HOME 必须是绝对路径" ;; esac
+  RUNTIME_DIR="$CACHE_HOME/ish-toolbox-runtime/$SOURCE_COMMIT"
   PAYLOAD_ROOT="$RUNTIME_DIR/tools"
   MARKER="$RUNTIME_DIR/.ish-toolbox-runtime-managed"
   RUNTIME_VALID=0

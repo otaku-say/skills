@@ -1,0 +1,34 @@
+#!/bin/sh
+# 按主机架构执行当前技能的本地或缓存 CLI。
+set -eu
+DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -L)"
+SKILL_DIR="$(CDPATH= cd -- "$DIR/.." && pwd -L)"
+TOOL="${SKILL_DIR##*/}"
+case "$(uname -m)" in
+  aarch64|arm64) ARCH=arm64; OTHER_ARCH=amd64 ;;
+  x86_64|amd64) ARCH=amd64; OTHER_ARCH=arm64 ;;
+  *) printf '不支持的处理器架构：%s\n' "$(uname -m)" >&2; exit 126 ;;
+esac
+
+if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
+  [ -n "${HOME:-}" ] || { printf '请先设置 HOME\n' >&2; exit 1; }
+  IFS= read -r SOURCE_COMMIT < "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" \
+    || { printf '无法读取 RUNTIME_SOURCE_COMMIT\n' >&2; exit 1; }
+  case "$SOURCE_COMMIT" in *[!0-9a-fA-F]*|'') printf 'RUNTIME_SOURCE_COMMIT 格式无效\n' >&2; exit 1 ;; esac
+  [ "${#SOURCE_COMMIT}" -eq 40 ] || { printf 'RUNTIME_SOURCE_COMMIT 必须是 40 位 Git commit\n' >&2; exit 1; }
+  CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+  case "$CACHE_HOME" in /*) ;; *) printf 'XDG_CACHE_HOME 必须是绝对路径\n' >&2; exit 1 ;; esac
+  BIN="$CACHE_HOME/$TOOL-runtime/$SOURCE_COMMIT/bin/$ARCH/$TOOL"
+else
+  BIN="$DIR/$ARCH/$TOOL"
+fi
+[ -f "$BIN" ] || { printf '缺少当前架构二进制：%s；请运行 sh %s/../scripts/install.sh\n' "$BIN" "$DIR" >&2; exit 127; }
+[ -x "$BIN" ] || { printf '二进制文件不可执行：%s\n' "$BIN" >&2; exit 126; }
+
+if [ ! -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
+  OTHER_DIR="$DIR/$OTHER_ARCH"
+  [ ! -L "$OTHER_DIR" ] || { printf '拒绝删除符号链接目录：%s\n' "$OTHER_DIR" >&2; exit 126; }
+  [ ! -e "$OTHER_DIR" ] || rm -rf "$OTHER_DIR" \
+    || { printf '无法清理非当前架构目录：%s\n' "$OTHER_DIR" >&2; exit 1; }
+fi
+exec "$BIN" "$@"

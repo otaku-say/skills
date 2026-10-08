@@ -1,0 +1,105 @@
+aiod-cli (zig) 0.2.0 —— 完整命令表（一条一行；仓库 https://github.com/otaku-say/sandbox-cli ｜ 文档 docs/aiod-cli.md）
+
+用法: aiod-cli <命令> [位置参数…] [--key=value]
+所有取值型 flag 一律用等号写法：--key=value（例：--lang=python）；布尔开关直接写 --flag。
+
+【基础】
+  health               aiod 网关健康检查
+  sandbox-info         沙箱信息（GET /v2/sandbox）
+  sandbox-packages     沙箱内置包清单
+  version              版本 / 构建信息
+  help                 帮助：速查表 / all 完整表 / <命令> 详情
+
+【执行】
+  exec                 同步执行一条命令并打印输出
+  async                异步派发一条命令，打印 command_id
+  log                  按 id 轮询/跟随输出
+  kill                 杀掉一条运行中的命令
+  stdin                给运行中的命令喂 stdin
+  sess-new             新建命令会话（固定 cwd）
+  sess                 在命令会话里执行
+  sess-ls              列出命令会话
+  sess-rm              删除命令会话
+
+【文件】
+  cat|read             读沙箱内文件到标准输出
+  write                把本地文件（或 stdin）写进沙箱
+  get                  下载沙箱内文件到本地（二进制安全）
+  put                  上传本地文件到沙箱（二进制安全）
+  fs-tree-put          整棵目录树上传（tar）
+  ls                   列目录
+  stat                 看文件/目录元信息
+  tree                 递归列目录树
+  mkdir                建目录
+  rm                   删除文件/目录
+  cp                   复制
+  mv                   移动/改名
+  edit                 按行改文件（替换 / 插入）
+  grep                 在沙箱内按正则搜文件内容
+  search               按路径/文件名 glob 搜
+
+【终端 PTY】
+  pty-new              新建 PTY 会话
+  pty                  在 PTY 会话里执行命令
+  pty-screen           读 PTY 当前屏幕快照
+  pty-input            往 PTY 会话发输入
+  pty-signal           给 PTY 会话发信号
+  pty-resize           调整 PTY 终端尺寸
+  pty-ls               列出 PTY 会话
+  pty-info             看单个 PTY 会话详情
+  pty-rm               删除 PTY 会话
+  pty-ws               WebSocket 附着到 PTY 会话（非交互）
+  pty-ws-anon          匿名 WebShell 附着
+
+【代码】
+  code                 用内置代码解释器执行一段代码
+  code-info            代码解释器信息（GET /v2/code/info）
+  code-sess-new        新建代码会话
+  code-sess-ls         列出代码会话
+  code-sess-get        看单个代码会话详情
+  code-sess-rm         删除代码会话
+
+【浏览器】
+  br-info              浏览器信息（GET /v2/browser/info）
+  br-go                导航到 URL
+  br-shot              截图到本地 PNG
+  br-eval              在页面里执行 JS 表达式
+  br-click             点击元素
+  br-fill              填输入框
+  br-snapshot          抓页面可访问性快照
+  br-tabs              列出标签页
+  br-tab-new           新开标签页
+  br-tab-use           切换当前标签页
+  br-tab-close         关闭标签页
+  br-cookies           读 Cookie
+  br-cookie-set        写 Cookie
+  br-cookie-rm         删 Cookie（DELETE /v2/browser/cookies）
+  br-upload            往 <input type=file> 挂文件（沙箱内路径）
+  br-network           抓网络请求列表
+  br-config            读/写浏览器配置（分辨率等）
+  br-cdp               直接发一条 CDP 命令
+
+【监听】
+  watch                创建文件监听器
+  watch-poll           长轮询取监听事件
+  watch-events         SSE 事件流（--max 收满退出）
+  watch-rm             删除监听器
+  watch-ls             列出所有监听器
+
+【MCP】
+  mcp                  MCP Hub JSON-RPC 透传
+
+【桌面】
+  cmp-info             computer-use worker 信息
+  cmp-shot             桌面截图到本地 PNG
+  cmp-cursor           当前光标位置
+  cmp-clipboard        读剪贴板
+  cmp-windows          列出窗口
+  cmp-a11y             可访问性树（应用级）
+  cmp-a11y-nodes       可访问性节点明细
+  cmp-act              执行一个桌面动作
+  cmp-act-batch        批量执行桌面动作
+  cmp-record           桌面录制（start / stop）
+
+单命令详情: aiod-cli help <命令> ｜ aiod-cli <命令> --help ｜ aiod-cli <命令> -h
+共 80 条命令。

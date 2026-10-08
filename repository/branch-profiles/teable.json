@@ -1,0 +1,13 @@
+{
+  "branch": "teable",
+  "mirrorSourceTree": true,
+  "limits": {
+    "packageBytes": 512000
+  },
+  "payload": {
+    "includeBinaries": false,
+    "runtimeSourceBranch": "main",
+    "archDirectoryNames": ["amd64", "arm64"]
+  },
+  "history": "orphan"
+}

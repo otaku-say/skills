@@ -1,0 +1,79 @@
+cube-cli (zig) 0.2.0 —— 完整命令表（一条一行；仓库 https://github.com/otaku-say/sandbox-cli ｜ 文档 docs/cube-cli.md）
+
+用法: cube-cli <命令> [位置参数…] [--key=value]
+所有取值型 flag 一律用等号写法：--key=value（例：--need=code）；布尔开关直接写 --flag。
+
+【沙箱】
+  new                    建沙箱（默认 aio-code 镜像）
+  ls                     列出沙箱（ID / 模板 / 状态 / 备注）
+  rm                     销毁沙箱
+  exec                   在沙箱内执行命令
+  code                   用解释器在沙箱内跑一段代码
+  ports                  实测沙箱内实际监听的端口
+  info                   沙箱详情（规格 / 元数据 / 卷挂载 / 截止时间）
+
+【生命周期】
+  pause                  暂停沙箱（挂起快照，0 成本）
+  resume                 恢复暂停的沙箱
+  timeout                设置空闲回收超时
+  refresh                续期：新增一个时间窗
+  net                    更新沙箱网络策略
+  connect                连接/续期（官方推荐，替代 deprecated 的 resume）
+
+【快照 / 卷】
+  snap                   给沙箱打快照
+  snap-ls                快照列表（x-next-token 翻页）
+  snap-rm                删除快照
+  rollback               回滚沙箱到某个快照
+  clone                  打快照并用它当模板批量克隆
+  vol-ls                 列出持久卷
+  vol-new                新建持久卷
+  vol-info               查看持久卷详情
+  vol-rm                 删除持久卷
+
+【模板】
+  tpl-ls                 模板列表（状态 / 别名 / jobID / lastError）
+  tpl-caps               模板能力画像（能力 + 端口 + 网关）
+  tpl-pick               按能力挑一个模板
+  tpl-info               模板详情摘要
+  tpl-logs               模板构建日志
+  tpl-rm                 删除模板/快照
+  tpl-rebuild            重建模板
+  tpl-build-status       模板构建状态
+  tpl-alias              设置/清除模板别名
+  tpl-resolve            别名解析
+  tpl-from-image         从 OCI 镜像推导模板默认值
+
+【文件】
+  cat|read               读沙箱内文件到标准输出
+  write                  把本地文件（或 stdin）写进沙箱
+  get                    把沙箱内文件下载到本地（二进制安全）
+  ls-file                列沙箱内目录
+  stat                   看沙箱内文件/目录元信息
+  mkdir                  在沙箱内建目录
+  rm-file                删除沙箱内文件/目录
+  mv                     移动/改名沙箱内文件
+  exists                 判断沙箱内路径是否存在（true/false）
+  write-files|write_files 批量写多个文件（远端:本地 清单 / JSON 清单）
+  watch-dir|watch_dir    观察沙箱内目录变更流（限时）
+
+【诊断 / 其它】
+  health                 控制面健康检查
+  version                版本 / 构建信息
+  help                   帮助：默认速查表 / all 完整表 / <命令> 详情
+  logs                   沙箱日志（启动 / 运行；排障首选）
+  raw                    任意控制面 API 透传（未覆盖端点的兜底）
+
+【进程 / PTY】
+  exec-async             后台启动命令（读到 pid 即返回，进程继续跑）
+  exec-logs              增量拉取异步进程的输出
+  exec-kill              给异步进程发信号（默认 SIGKILL）
+  exec-stdin             给异步进程送 stdin 输入
+  pty-open               开一个持久 PTY 会话（script 记录全过程）
+  pty-write              向 PTY 会话送输入（SendInput pty）
+  pty-read               读 PTY 会话记录（按偏移增量）
+  pty-close              结束 PTY 会话
+  pty-resize             调整 PTY 窗口大小
+
+单命令详情: cube-cli help <命令> ｜ cube-cli <命令> --help ｜ cube-cli <命令> -h
+共 58 条命令。
