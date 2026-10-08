@@ -20,7 +20,7 @@ sh "$AIOD_SKILL_DIR/bin/aiod-cli" version
 sh "$AIOD_SKILL_DIR/bin/aiod-cli" help
 ```
 
-`install.sh` 从脚本自身路径推导技能目录，检测主机架构并验证对应二进制；随后删除 `bin/` 中不匹配架构的二进制目录，并将本技能 `bin/` 加入 PATH。Skills 管理器更新技能包后，wrapper 会在下一次调用时再次删除恢复的异架构目录；install.sh 仍建议立即运行以校验并修复 PATH。新 shell 或重新加载 shell 配置后生效。安装不复制或搬移命令文件。
+`install.sh` 从脚本自身路径推导技能目录并配置 PATH。main 完整包会验证本地当前架构二进制并裁剪另一架构；Teable 镜像不带二进制，会从该技能的 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 下载并校验当前架构文件，放入 `${XDG_CACHE_HOME:-$HOME/.cache}/aiod-cli-runtime/`，不写只读技能目录。wrapper 在 main 包中会于下一次调用时继续清理另一架构文件。新 shell 或重新加载 shell 配置后生效；安装不复制或搬移技能文件。
 
 每次操作都要使用目标沙箱的实际 ID，并以已配置的数据面域名构造网关地址。不要猜域名，也不要复用其他沙箱的 URL：
 
@@ -132,19 +132,21 @@ npx skills update aiod-cli -g
 sh "$AIOD_SKILL_DIR/scripts/install.sh"
 ```
 
-CLI 二进制独立发布。`scripts/update.sh` 只下载并校验当前架构的 Release asset，原位更新本技能 `bin/<arch>/` 下的文件，然后重新运行安装流程。更新使用同文件系统暂存和备份，不会把二进制安装到固定系统目录：
+CLI 二进制独立发布。`scripts/update.sh` 在 main 完整包中只下载并校验当前架构的 Release asset；Teable 镜像则从固定 main commit 下载清单对应的当前架构二进制到 `${XDG_CACHE_HOME:-$HOME/.cache}/aiod-cli-runtime/`。两种模式都会重新运行安装流程：
 
 ```sh
 sh "$AIOD_SKILL_DIR/scripts/update.sh"
 sh "$AIOD_SKILL_DIR/scripts/verify.sh"
 ```
 
-`verify.sh` 离线校验当前架构二进制、wrapper 和本地 SHA256 清单；它不联网查询上游。需要强制重新下载时，将 `--force` 传给更新脚本。上游 Release 地址可通过 `AIOD_CLI_RELEASE_BASE` 覆盖。
+`verify.sh` 离线校验当前架构二进制、wrapper 和 SHA256 清单；它不联网查询上游。main 包需要强制重新下载时，将 `--force` 传给更新脚本；Teable 缓存由固定 commit 管理。上游 Release 地址可通过 `AIOD_CLI_RELEASE_BASE` 覆盖。
 
 卸载先清除本技能写入的 PATH 配置，再由 Skills CLI 移除技能文件：
 
 ```sh
 sh "$AIOD_SKILL_DIR/scripts/uninstall.sh"
+# 需要同时清除该技能的受管理缓存时显式执行：
+sh "$AIOD_SKILL_DIR/scripts/uninstall.sh" --yes --purge-runtime
 npx skills remove --global aiod-cli
 ```
 
@@ -152,11 +154,11 @@ npx skills remove --global aiod-cli
 
 ## 技能目录内文件
 
-- `bin/aiod-cli` 根据主机架构选择本技能目录内的 CLI 二进制。
+- `bin/aiod-cli` 根据主机架构选择 main 包本地二进制或 Teable 用户缓存中的运行时。
 - `bin/amd64/aiod-cli` 与 `bin/arm64/aiod-cli` 是仓库 main 发布的 Linux 二进制；安装后仅保留当前架构。
 - `bin/SHA256SUMS` 保存 Release 清单中的当前架构哈希；main 源包初始包含两个架构条目。
 - `scripts/install.sh` 验证、裁剪非当前架构并幂等配置 PATH。
-- `scripts/update.sh` 更新当前架构二进制并重新执行安装后处理。
-- `scripts/verify.sh` 离线校验当前架构及本地 SHA256 清单；`scripts/uninstall.sh` 只清理本技能 PATH 配置。
+- `scripts/update.sh` 按安装模式更新当前架构二进制并重新执行安装后处理；`scripts/update-runtime.sh` 用于 Teable 的固定 commit 缓存运行时。
+- `scripts/verify.sh` 离线校验当前架构及 SHA256 清单；`scripts/uninstall.sh` 清理 PATH，可通过显式 `--purge-runtime` 清理受管理缓存。
 - [兼容性与测试结果](references/compatibility-tests.md)区分已测试行为与尚未执行的架构/发行版。
 - `references/cli-reference.txt` 保存 CLI 0.2.0 的完整 `help all` 输出；版本不同时以运行时帮助为准。

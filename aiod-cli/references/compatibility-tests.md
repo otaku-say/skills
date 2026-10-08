@@ -15,7 +15,9 @@ CLI 版本：`0.2.0`。二进制来源与兼容性声明以该版本的 Release 
 | 版本与帮助 | 通过：版本、`help all` 和 81 个命令帮助入口（含别名） |
 | aiod 数据面流程 | 通过：健康检查、沙箱信息、同步命令、Python、文件读写与 put/get、异步任务/日志、命令会话和 PTY 操作 |
 | 浏览器和桌面 API | 未测试：所用 CubeSandbox 镜像不具备浏览器或桌面能力 |
-| Skills CLI 实际安装/更新/卸载 | 未执行；生命周期验证使用临时技能目录模拟包更新，不声称 Skills CLI 本身已实测 |
+| Teable amd64 缓存运行时 | 完整镜像只含脚本和清单；在只读技能包和临时 XDG 缓存中安装、重复校验、执行版本命令并卸载 | 本地 file:// 主分支二进制夹具通过；未访问公开网络或 Teable Skills 服务 |
+| Teable 下载失败保护 | aiod-cli 源文件 SHA256 错误时不得留下运行时；更正来源后重新安装 | 通过；仅下载主机架构 |
+| Skills CLI 实际安装/更新/卸载 | 未执行；生命周期验证使用只读包模拟，没有声称 Skills CLI 本身已实测 |
 
 静态 musl 构建面向使用 glibc 或 musl 的 Linux 发行版。除已执行的 x86_64 Linux 测试外，Debian/Ubuntu、Fedora/RHEL、Arch、Alpine 等发行版的独立验证及原生 arm64 运行验证仍未完成。
 

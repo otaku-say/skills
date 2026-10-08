@@ -1,4 +1,4 @@
-name: Sync ish-toolbox tools
+name: Sync skills and Teable mirror
 
 on:
   schedule:
@@ -12,16 +12,6 @@ on:
         type: boolean
   push:
     branches: [main]
-    paths:
-      - '.github/ish-toolbox-tools-tree.sha'
-      - '.github/workflows/sync-tools.yml'
-      - 'tools/**'
-      - 'aiod-cli/**'
-      - 'cube-cli/**'
-      - 'repository/**'
-      - 'AGENTS.md'
-      - 'CONTRIBUTING.md'
-      - 'README.md'
 
 permissions:
   contents: write
@@ -106,7 +96,7 @@ jobs:
 
       - name: Build and publish platform branches
         env:
-          PUBLISH_BRANCHES: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+          PUBLISH_BRANCHES: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish) || steps.upstream.outputs.changed == 'true' }}
         run: |
           if [ "$PUBLISH_BRANCHES" = true ]; then
             sh repository/scripts/publish-agent-branches.sh --push

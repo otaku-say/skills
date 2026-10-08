@@ -1,13 +1,13 @@
 {
   "branch": "teable",
-  "skillPath": "tools",
+  "mirrorSourceTree": true,
   "limits": {
-    "skillPackageBytes": 512000
+    "packageBytes": 512000
   },
   "payload": {
     "includeBinaries": false,
-    "runtimeSourceBranch": "main"
+    "runtimeSourceBranch": "main",
+    "archDirectoryNames": ["amd64", "arm64"]
   },
-  "history": "orphan",
-  "skillTemplate": "repository/branch-profiles/teable/SKILL.md.in"
+  "history": "orphan"
 }

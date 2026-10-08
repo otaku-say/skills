@@ -18,14 +18,13 @@ case "$SOURCE_COMMIT" in *[!0-9a-fA-F]*|'') printf 'source commit 格式无效�
 PROFILE="$ROOT/repository/branch-profiles/$PROFILE_NAME.json"
 [ -f "$PROFILE" ] || { printf '找不到 profile：%s\n' "$PROFILE" >&2; exit 1; }
 BRANCH="$(jq -er '.branch' "$PROFILE")"
-SKILL_PATH="$(jq -er '.skillPath' "$PROFILE")"
 INCLUDE_BINARIES="$(jq -r '.payload.includeBinaries' "$PROFILE")"
-MAX_BYTES="$(jq -r '.limits.skillPackageBytes // empty' "$PROFILE")"
-TEMPLATE="$(jq -er '.skillTemplate' "$PROFILE")"
+MAX_BYTES="$(jq -r '.limits.packageBytes // .limits.skillPackageBytes // empty' "$PROFILE")"
+MIRROR_TREE="$(jq -r '(.mirrorSourceTree // false) | tostring' "$PROFILE")"
 RUNTIME_SOURCE="$(jq -r '.payload.runtimeSourceBranch // empty' "$PROFILE")"
 SOURCE_ROOT="$(CDPATH= cd -- "$SOURCE_ROOT" && pwd -L)"
-[ -d "$SOURCE_ROOT/$SKILL_PATH" ] || { printf '源技能目录不存在：%s\n' "$SKILL_PATH" >&2; exit 1; }
 case "$OUTPUT_DIR" in /*) ;; *) OUTPUT_DIR="$PWD/$OUTPUT_DIR" ;; esac
+case "$OUTPUT_DIR/" in "$SOURCE_ROOT/"*) printf '输出目录不得位于源仓库内。\n' >&2; exit 1 ;; esac
 if [ -e "$OUTPUT_DIR" ]; then
   [ -d "$OUTPUT_DIR" ] || { printf '输出目标不是目录：%s\n' "$OUTPUT_DIR" >&2; exit 1; }
   [ -z "$(find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ] \
@@ -33,6 +32,94 @@ if [ -e "$OUTPUT_DIR" ]; then
 else
   mkdir -p "$OUTPUT_DIR"
 fi
+
+if [ "$MIRROR_TREE" = true ]; then
+  [ "$INCLUDE_BINARIES" = false ] && [ "$RUNTIME_SOURCE" = main ] \
+    || { printf '完整镜像必须排除二进制并从 main 获取运行时。\n' >&2; exit 1; }
+  command -v tar >/dev/null 2>&1 || { printf '完整镜像构建需要 tar。\n' >&2; exit 1; }
+  command -v file >/dev/null 2>&1 || { printf '完整镜像构建需要 file 检查二进制。\n' >&2; exit 1; }
+  command -v sha256sum >/dev/null 2>&1 || { printf '完整镜像构建需要 sha256sum 校验源二进制。\n' >&2; exit 1; }
+  ARCHIVE="$OUTPUT_DIR/.source-tree.tar"
+  tar --exclude=.git -cf "$ARCHIVE" -C "$SOURCE_ROOT" .
+  tar -xf "$ARCHIVE" -C "$OUTPUT_DIR"
+  rm -f "$ARCHIVE"
+  for required in README.md AGENTS.md CONTRIBUTING.md; do
+    [ -f "$OUTPUT_DIR/$required" ] || { printf '完整镜像缺少 %s。\n' "$required" >&2; exit 1; }
+  done
+
+  verify_arch_manifests() {
+    skill_dir="$1"
+    found=0
+    amd64_count=0
+    arm64_count=0
+    for manifest in $(find "$skill_dir" -type f -name 'SHA256SUMS*' -print); do
+      found=1
+      manifest_dir="$(dirname -- "$manifest")"
+      while read -r expected relative extra || [ -n "${expected:-}" ]; do
+        [ -n "${expected:-}" ] || continue
+        [ -z "${extra:-}" ] || { printf '清单格式无效：%s\n' "$manifest" >&2; return 1; }
+        case "$expected" in *[!0-9a-fA-F]*|'') printf 'SHA256 格式无效：%s\n' "$relative" >&2; return 1 ;; esac
+        [ "${#expected}" -eq 64 ] || { printf 'SHA256 长度无效：%s\n' "$relative" >&2; return 1; }
+        case "$relative" in /*|..|../*|*/../*|*/..|*//*) printf '清单路径无效：%s\n' "$relative" >&2; return 1 ;; esac
+        case "$relative" in
+          amd64/*|*/amd64/*) amd64_count=$((amd64_count + 1)) ;;
+          arm64/*|*/arm64/*) arm64_count=$((arm64_count + 1)) ;;
+          *) printf '清单路径缺少架构：%s\n' "$relative" >&2; return 1 ;;
+        esac
+        file="$manifest_dir/$relative"
+        [ -f "$file" ] && [ -x "$file" ] || { printf '源二进制缺失或不可执行：%s\n' "$file" >&2; return 1; }
+        actual="$(sha256sum "$file" | awk '{print $1}')"
+        [ "$actual" = "$expected" ] || { printf '源二进制 SHA256 不匹配：%s\n' "$relative" >&2; return 1; }
+      done < "$manifest"
+    done
+    [ "$found" -eq 1 ] && [ "$amd64_count" -gt 0 ] && [ "$arm64_count" -gt 0 ] \
+      || { printf '%s 缺少完整的 amd64/arm64 二进制清单。\n' "${skill_dir##*/}" >&2; return 1; }
+  }
+
+  SKILL_COUNT=0
+  for skill_dir in "$OUTPUT_DIR"/*; do
+    [ -f "$skill_dir/SKILL.md" ] || continue
+    skill_name="${skill_dir##*/}"
+    for lifecycle in install update uninstall verify; do
+      [ -f "$skill_dir/scripts/$lifecycle.sh" ] \
+        || { printf '%s 缺少 scripts/%s.sh。\n' "$skill_name" "$lifecycle" >&2; exit 1; }
+      sh -n "$skill_dir/scripts/$lifecycle.sh" \
+        || { printf '脚本语法错误：%s/scripts/%s.sh\n' "$skill_name" "$lifecycle" >&2; exit 1; }
+    done
+    arch_dirs="$(find "$skill_dir" \( -type d -o -type l \) \( -name amd64 -o -name arm64 \) -print)"
+    if [ -n "$arch_dirs" ]; then
+      verify_arch_manifests "$skill_dir"
+      grep -Fq RUNTIME_SOURCE_COMMIT "$skill_dir/scripts/update.sh" \
+        || { printf '%s 的更新脚本不支持固定运行时来源。\n' "$skill_name" >&2; exit 1; }
+      grep -Fq RUNTIME_SOURCE_COMMIT "$skill_dir/scripts/verify.sh" \
+        || { printf '%s 的验证脚本不支持缓存运行时。\n' "$skill_name" >&2; exit 1; }
+      printf '%s\n' "$SOURCE_COMMIT" > "$skill_dir/RUNTIME_SOURCE_COMMIT"
+      for arch_dir in $arch_dirs; do
+        case "$arch_dir" in "$skill_dir"/*) ;; *) printf '架构目录越界：%s\n' "$arch_dir" >&2; exit 1 ;; esac
+        rm -rf "$arch_dir"
+      done
+    fi
+    SKILL_COUNT=$((SKILL_COUNT + 1))
+    find "$skill_dir/scripts" -type f -name '*.sh' -exec sh -n {} \; \
+      || { printf '%s 包含语法错误的维护脚本。\n' "$skill_name" >&2; exit 1; }
+  done
+  [ "$SKILL_COUNT" -gt 0 ] || { printf '完整镜像中没有顶层技能。\n' >&2; exit 1; }
+  [ -z "$(find "$OUTPUT_DIR" \( -type d -o -type l \) \( -name amd64 -o -name arm64 \) -print -quit)" ] \
+    || { printf 'Teable 镜像仍包含架构目录。\n' >&2; exit 1; }
+  BINARY_REPORT="$(find "$OUTPUT_DIR" -type f -exec file {} + | grep -E 'ELF|Mach-O|PE32' || true)"
+  [ -z "$BINARY_REPORT" ] || { printf 'Teable 镜像仍包含编译二进制：\n%s\n' "$BINARY_REPORT" >&2; exit 1; }
+  SIZE_BYTES="$(du -sb "$OUTPUT_DIR" | awk '{print $1}')"
+  if [ -n "$MAX_BYTES" ] && [ "$SIZE_BYTES" -gt "$MAX_BYTES" ]; then
+    printf '完整镜像大小超限：%s 字节，大于 %s。\n' "$SIZE_BYTES" "$MAX_BYTES" >&2
+    exit 1
+  fi
+  printf '已构建 %s 完整镜像：%s 字节，包含 %s 个技能，源 commit %s。\n' \
+    "$BRANCH" "$SIZE_BYTES" "$SKILL_COUNT" "$SOURCE_COMMIT"
+  exit 0
+fi
+
+SKILL_PATH="$(jq -er '.skillPath' "$PROFILE")"
+TEMPLATE="$(jq -er '.skillTemplate' "$PROFILE")"
 
 hash_file() {
   if command -v sha256sum >/dev/null 2>&1; then

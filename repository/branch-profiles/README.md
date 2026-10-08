@@ -1,15 +1,17 @@
 # Agent 分支策略
 
-`main` 是完整发行分支，包含 `tools/` 技能和 amd64/arm64 二进制。平台分支由 main 构建，按各自 profile 的包大小、二进制打包策略、运行时来源、技能模板和历史策略生成。
+`main` 是完整发行分支，包含仓库文档、规则文件、所有技能和 amd64/arm64 二进制。`teable` 分支镜像 main 的完整文件树，包括 `README.md`、`AGENTS.md`、`CONTRIBUTING.md`、未来新增的技能，以及构建和校验资料；唯一有意省略的是技能目录中的架构二进制目录。分支使用独立 orphan 历史，避免 Teable 获取 main 的二进制历史。
 
-GitHub Actions 在 main 的 push、定时或手动触发时运行校验与本地分支构建；默认不推送兼容分支。只有从 main 手动触发 workflow 并显式启用 `publish` 输入，才会调用发布器推送公开分支。命令行发布器也必须显式传入 `--push`。新增兼容平台时，添加 `<platform>.json` 与对应的 `SKILL.md.in`（模板不能直接命名为 `SKILL.md`），然后由分支构建工作流生成该平台分支。生成分支只保留目标技能树和构建元数据，不在主仓库技能目录中增加嵌套技能入口。
+main 的每次 push 都会校验并重新生成 Teable 镜像，随后同步公开 `teable` 分支。定时任务如果同步了上游工具并产生 main 内容更新，也会在同一次运行中更新镜像。手动触发仍可通过 `publish` 输入选择是否发布。命令行发布器默认 dry-run，只有显式传入 `--push` 才会推送。
 
+构建器自动发现仓库根目录下含 `SKILL.md` 的技能目录，并递归删除名为 `amd64` 或 `arm64` 的架构目录。含二进制的技能会获得固定 `RUNTIME_SOURCE_COMMIT`；其生命周期脚本必须支持从该 main commit 只下载当前架构、校验 SHA256，并将运行时写入 `${XDG_CACHE_HOME:-$HOME/.cache}`，不能写入只读技能目录。新增技能时遵守该规则即可随 main 自动进入 Teable 镜像，无需维护技能列表；无二进制的技能不需要运行时标记。
 
-Teable profile 的技能包上限是 512000 字节，排除二进制，并将 main commit 写入 `RUNTIME_SOURCE_COMMIT`。构建输出使用独立 orphan 历史，避免安装端下载 main 的大文件历史。其他分支可声明自己的包大小和 payload 规则。
+Teable 完整镜像总大小上限为 512000 字节。构建会检查所有技能具备 install/update/uninstall/verify 脚本，确认架构目录已移除，并扫描是否残留 ELF、Mach-O 或 PE 二进制。
 
-校验 profile 与生成包：
+校验 profile 与构建包：
 
 ```sh
+sh repository/scripts/validate-skills.sh
 sh repository/scripts/validate-branch-profiles.sh
 sh repository/scripts/build-agent-branch.sh teable "$PWD" /tmp/teable-package "$(git rev-parse HEAD)"
 ```

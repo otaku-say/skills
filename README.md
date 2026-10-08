@@ -42,9 +42,9 @@ npx skills remove --global <skill-name>
 
 ## 工具箱发行分支
 
-`main` 保留完整 `tools/` 技能及 amd64/arm64 二进制。首次运行 `tools/scripts/install.sh` 时识别主机架构、校验并删除另一架构的本地二进制目录，然后通过 PATH 暴露当前架构命令。
+`main` 保留完整仓库源文件、所有技能和 amd64/arm64 二进制。各技能安装时识别主机架构、校验并裁剪另一架构，再通过 PATH 使用命令。
 
-Teable 使用由 main 构建器生成的 `teable` 兼容分支。GitHub Actions 默认只校验和本地构建；仅 main 上手动触发并显式启用 `publish` 时推送公开分支。Teable 分支采用独立 orphan 历史，技能包剔除二进制并限制在 512000 字节以内；安装时只从固定 main commit 下载当前架构的二进制并按 SHA256 校验。未来兼容分支由 main 的 branch profile 声明包大小、payload 和历史规则，再由同一构建器生成。策略见 [`repository/branch-profiles/README.md`](repository/branch-profiles/README.md)。
+Teable 的 `teable` 分支镜像 main 的仓库文件树，包括 README、规则文档及所有现有和未来技能，只移除技能目录中的架构二进制目录。分支使用独立 orphan 历史，完整镜像不超过 512000 字节；安装脚本从固定 main commit 只下载当前架构二进制，校验 SHA256 后写入 `${XDG_CACHE_HOME:-$HOME/.cache}`，不改写只读技能目录。main 每次更新后由 GitHub Actions 自动重建并同步 Teable 分支；定时任务同步上游工具造成 main 更新时也会同步。策略见 [`repository/branch-profiles/README.md`](repository/branch-profiles/README.md)。
 
 ## 目录与维护
 

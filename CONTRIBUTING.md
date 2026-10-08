@@ -73,11 +73,10 @@ wrapper 接受 `x86_64`/`amd64` 与 `aarch64`/`arm64`。main 源包可以同时�
 
 ## 发行分支
 
-- `main` 保存完整技能源和所有架构的二进制；平台兼容分支由 main 的 profile、模板和构建器生成。
-- 每个 profile 声明目标分支、包大小限制、是否带二进制、固定运行时来源和历史策略。兼容分支使用 orphan 历史，避免安装端获取 main 的大文件历史。
-- Teable `tools` 包必须小于 500 KB（构建上限 512000 字节），不含架构二进制；构建时写入固定 main commit，安装时只下载本机架构并逐文件校验 SHA256。
-- 每个工具仍属于 `tools` 这一个技能；各工具目录中的 `USAGE.md` 不是独立技能。新增平台需增加 profile 与非 `SKILL.md` 命名的模板，并由共同构建器生成。
-- Actions push/schedule 默认只校验和本地构建；公开兼容分支只允许从 main 手动触发并明确启用 `publish` 输入后推送。命令行发布必须显式传 `--push`，不得在本地验证时推送。
+- `main` 保存完整仓库和所有架构二进制；Teable 分支镜像 main 的整个文件树，包括 README、规则文档和所有顶层技能，只剔除技能内名为 `amd64`/`arm64` 的架构目录，完整包上限为 512000 字节。
+- 构建器自动发现含 `SKILL.md` 的顶层技能。新增技能无需维护分支技能名单；若技能带架构二进制，必须将其放入标准架构目录，并让 install/update/verify 根据 `RUNTIME_SOURCE_COMMIT` 从 main 下载、校验当前架构运行时到 `${XDG_CACHE_HOME:-$HOME/.cache}`，不能写入只读技能目录。没有二进制的技能无需运行时标记。
+- Teable 使用独立 orphan 历史。main 每次 push 自动重建并同步公开 `teable` 分支；定时任务若同步上游并修改 main，也在同一次运行中同步。手动触发可使用 `publish` 输入，命令行发布必须显式传 `--push`。
+- 每个工具仍属于 `tools` 这一个技能；其中各工具目录的 `USAGE.md` 是参考资料，不是独立技能。
 
 ## 隐私和安全
 

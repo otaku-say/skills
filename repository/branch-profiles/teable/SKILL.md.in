@@ -8,7 +8,7 @@ compatibility: >-
 
 # ish-toolbox Teable 版
 
-这是供 Teable Agent 安装的轻量技能包。`tools/` 中只包含说明、清单和生命周期脚本；二进制在首次安装后下载到技能目录同级、按 main commit 隔离的运行时目录。安装脚本从自身位置动态推导路径，不搬移技能文件或已有二进制，只把当前架构的工具目录加入用户 PATH。
+这是为单独构建 `tools` 轻量技能包保留的兼容模板。当前完整 Teable 分支直接镜像 main 的 `tools/SKILL.md`，只剔除架构二进制；运行时按 `RUNTIME_SOURCE_COMMIT` 下载当前架构文件到 `${XDG_CACHE_HOME:-$HOME/.cache}/ish-toolbox-runtime/<main-commit>/`，并校验 SHA256。安装脚本不得写入只读技能目录，也不得复制或移动技能文件。
 
 ## 安装与更新
 

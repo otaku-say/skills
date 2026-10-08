@@ -20,7 +20,7 @@ sh "$CUBE_SKILL_DIR/scripts/install.sh"
 sh "$CUBE_SKILL_DIR/bin/cube-cli" version
 ```
 
-`install.sh` 从脚本自身位置推导技能目录，识别主机架构并验证当前 CLI；随后删除 `bin/` 中不匹配架构的二进制目录，并将 `bin/` 加入 PATH。Skills 管理器更新技能包后，wrapper 会在下一次调用时清理重新带入的另一架构；install.sh 仍建议立即运行以校验并修复 PATH。新 shell 或重新加载配置后可直接使用 `cube-cli`。安装不会搬移或复制 CLI 文件。
+`install.sh` 从脚本自身路径推导技能目录并配置 PATH。main 完整包会验证本地当前架构二进制并裁剪另一架构；Teable 镜像不带二进制，会从该技能的 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 下载并校验当前架构文件，放入 `${XDG_CACHE_HOME:-$HOME/.cache}/cube-cli-runtime/`，不写只读技能目录。wrapper 在 main 包中会于下一次调用时继续清理另一架构文件。新 shell 或重新加载配置后可直接使用 `cube-cli`；安装不会搬移或复制 CLI 文件。
 
 在运行环境的受保护配置中设置部署变量，不要将它们写入仓库或命令记录：
 
@@ -152,19 +152,21 @@ CUBE_SKILL_DIR="/path/to/installed/cube-cli"
 sh "$CUBE_SKILL_DIR/scripts/install.sh"
 ```
 
-CLI 二进制独立发布。`scripts/update.sh` 只下载和校验当前架构的 Release asset，原位更新本技能 `bin/<arch>/` 下的文件，然后重新执行安装后处理：
+CLI 二进制独立发布。`scripts/update.sh` 在 main 完整包中只下载并校验当前架构的 Release asset；Teable 镜像则从固定 main commit 下载清单对应的当前架构二进制到 `${XDG_CACHE_HOME:-$HOME/.cache}/cube-cli-runtime/`。两种模式都会重新运行安装流程：
 
 ```sh
 sh "$CUBE_SKILL_DIR/scripts/update.sh"
 sh "$CUBE_SKILL_DIR/scripts/verify.sh"
 ```
 
-`verify.sh` 离线校验当前架构二进制、wrapper 和本地 SHA256 清单；它不联网检查上游版本。需要强制重新下载时传 `--force`。上游 Release 地址可通过 `CUBE_CLI_RELEASE_BASE` 覆盖。
+`verify.sh` 离线校验当前架构二进制、wrapper 和 SHA256 清单；它不联网检查上游版本。main 包需要强制重新下载时传 `--force`；Teable 缓存由固定 commit 管理。上游 Release 地址可通过 `CUBE_CLI_RELEASE_BASE` 覆盖。
 
 卸载先清除本技能写入的 PATH 配置，再由 Skills CLI 移除本地技能文件：
 
 ```sh
 sh "$CUBE_SKILL_DIR/scripts/uninstall.sh"
+# 需要同时清除该技能的受管理缓存时显式执行：
+sh "$CUBE_SKILL_DIR/scripts/uninstall.sh" --yes --purge-runtime
 npx skills remove --global cube-cli
 ```
 
@@ -172,11 +174,11 @@ npx skills remove --global cube-cli
 
 ## 技能目录内文件
 
-- `bin/cube-cli` 按主机架构选择本技能目录内的 CLI 二进制。
+- `bin/cube-cli` 根据主机架构选择 main 包本地二进制或 Teable 用户缓存中的运行时。
 - main 源包包含 `bin/amd64/cube-cli` 与 `bin/arm64/cube-cli`；安装后仅保留当前架构。
 - `bin/SHA256SUMS` 保存 Release 清单中的当前架构哈希；main 源包初始包含两个架构条目。
 - `scripts/install.sh` 验证、裁剪非当前架构并幂等配置 PATH。
-- `scripts/update.sh` 更新当前架构二进制并重新执行安装后处理。
-- `scripts/verify.sh` 离线校验当前架构及本地 SHA256 清单；`scripts/uninstall.sh` 只清理本技能 PATH 配置。
+- `scripts/update.sh` 按安装模式更新当前架构二进制并重新执行安装后处理；`scripts/update-runtime.sh` 用于 Teable 的固定 commit 缓存运行时。
+- `scripts/verify.sh` 离线校验当前架构及 SHA256 清单；`scripts/uninstall.sh` 清理 PATH，可通过显式 `--purge-runtime` 清理受管理缓存。
 - [兼容性与测试结果](references/compatibility-tests.md)区分已测试行为与尚未执行的架构/发行版。
 - `references/cli-reference.txt` 保存 CLI 0.2.0 的完整 `help all` 输出；若版本不同，以已安装二进制的帮助为准。

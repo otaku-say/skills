@@ -3,7 +3,6 @@ set -eu
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -L)"
 SKILL_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -L)"
-SKILLS_DIR="$(CDPATH= cd -- "$SKILL_DIR/.." && pwd -L)"
 YES=0
 PURGE_RUNTIME=0
 for arg in "$@"; do
@@ -39,7 +38,12 @@ done
 trap 'rm -rf "$TMP"' EXIT
 trap 'exit 1' HUP INT TERM
 
-RUNTIME_ROOT="$SKILLS_DIR/.ish-toolbox-runtime"
+RUNTIME_ROOT=""
+if [ "$PURGE_RUNTIME" -eq 1 ]; then
+  CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+  case "$CACHE_HOME" in /*) ;; *) printf 'XDG_CACHE_HOME 必须是绝对路径。\n' >&2; exit 1 ;; esac
+  RUNTIME_ROOT="$CACHE_HOME/ish-toolbox-runtime"
+fi
 if [ "$PURGE_RUNTIME" -eq 1 ] && [ -e "$RUNTIME_ROOT" ]; then
   [ ! -L "$RUNTIME_ROOT" ] && [ -d "$RUNTIME_ROOT" ] \
     || { printf '拒绝清理非目录或符号链接：%s\n' "$RUNTIME_ROOT" >&2; exit 1; }

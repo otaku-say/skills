@@ -36,8 +36,8 @@ trap 'exit 1' HUP INT TERM
 for PROFILE in "$ROOT"/repository/branch-profiles/*.json; do
   [ -f "$PROFILE" ] || continue
   BRANCH="$(jq -er '.branch' "$PROFILE")"
+  MIRROR_TREE="$(jq -r '(.mirrorSourceTree // false) | tostring' "$PROFILE")"
   [ "$BRANCH" = main ] && continue
-  SKILL_PATH="$(jq -er '.skillPath' "$PROFILE")"
   PROFILE_NAME="${PROFILE##*/}"
   PROFILE_NAME="${PROFILE_NAME%.json}"
   PACKAGE="$TMP/package-$BRANCH"
@@ -65,9 +65,15 @@ for PROFILE in "$ROOT"/repository/branch-profiles/*.json; do
   fi
   git -C "$WORKTREE" rm -rf --ignore-unmatch . >/dev/null 2>&1 || true
   git -C "$WORKTREE" clean -ffdqx
-  mkdir -p "$WORKTREE/$SKILL_PATH"
-  cp -a "$PACKAGE/$SKILL_PATH/." "$WORKTREE/$SKILL_PATH/"
-  git -C "$WORKTREE" add -A
+  if [ "$MIRROR_TREE" = true ]; then
+    cp -a "$PACKAGE/." "$WORKTREE/"
+    git -C "$WORKTREE" add -A -f
+  else
+    SKILL_PATH="$(jq -er '.skillPath' "$PROFILE")"
+    mkdir -p "$WORKTREE/$SKILL_PATH"
+    cp -a "$PACKAGE/$SKILL_PATH/." "$WORKTREE/$SKILL_PATH/"
+    git -C "$WORKTREE" add -A
+  fi
   if git -C "$WORKTREE" diff --cached --quiet; then
     printf '%s 分支无需更新。\n' "$BRANCH"
   else

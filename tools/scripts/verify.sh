@@ -90,8 +90,10 @@ elif [ -f "$ROOT/RUNTIME_SOURCE_COMMIT" ]; then
   IFS= read -r source_commit < "$ROOT/RUNTIME_SOURCE_COMMIT"
   case "$source_commit" in *[!0-9a-fA-F]*|'') fail "RUNTIME_SOURCE_COMMIT 格式无效" ;; esac
   [ "${#source_commit}" -eq 40 ] || fail "RUNTIME_SOURCE_COMMIT 必须是 40 位 Git commit"
-  root_parent="$(CDPATH= cd -- "$ROOT/.." && pwd -L)"
-  runtime_dir="$root_parent/.ish-toolbox-runtime/$source_commit"
+  [ -n "${HOME:-}" ] || fail "请先设置 HOME"
+  cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+  case "$cache_home" in /*) ;; *) fail "XDG_CACHE_HOME 必须是绝对路径" ;; esac
+  runtime_dir="$cache_home/ish-toolbox-runtime/$source_commit"
   payload_root="$runtime_dir/tools"
   runtime_marker="$runtime_dir/.ish-toolbox-runtime-managed"
   [ ! -L "$runtime_dir" ] && [ -f "$runtime_marker" ] || fail "运行时二进制尚未安装；请运行 scripts/install.sh"

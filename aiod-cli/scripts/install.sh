@@ -14,6 +14,9 @@ case "$(uname -m)" in
   aarch64|arm64) HOST_ARCH=arm64; OTHER_ARCH=amd64 ;;
   *) printf '不支持的处理器架构：%s\n' "$(uname -m)" >&2; exit 1 ;;
 esac
+if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
+  sh "$SCRIPT_DIR/update-runtime.sh"
+fi
 sh "$SCRIPT_DIR/verify.sh"
 
 TMP="${TMPDIR:-/tmp}/$SKILL_NAME-install.$$"
