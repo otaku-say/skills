@@ -16,9 +16,11 @@ wrapper 会按主机架构选择 Linux amd64/x86_64 或 arm64/aarch64 二进制�
 ```sh
 npx skills add otaku-say/skills --skill cube-cli -g
 CUBE_SKILL_DIR="/path/to/installed/cube-cli"
-sh "$CUBE_SKILL_DIR/bin/update.sh"
+sh "$CUBE_SKILL_DIR/scripts/install.sh"
 sh "$CUBE_SKILL_DIR/bin/cube-cli" version
 ```
+
+`install.sh` 从脚本自身位置推导技能目录，识别主机架构并验证当前 CLI；随后删除 `bin/` 中不匹配架构的二进制目录，并将 `bin/` 加入 PATH。Skills 管理器更新技能包后，wrapper 会在下一次调用时清理重新带入的另一架构；install.sh 仍建议立即运行以校验并修复 PATH。新 shell 或重新加载配置后可直接使用 `cube-cli`。安装不会搬移或复制 CLI 文件。
 
 在运行环境的受保护配置中设置部署变量，不要将它们写入仓库或命令记录：
 
@@ -31,7 +33,7 @@ sh "$CUBE_SKILL_DIR/bin/cube-cli" version
 
 示例中只能使用占位符，禁止提交真实域名、令牌、沙箱 ID 或部署专属信息。检查配置时不得输出秘密值。
 
-更新和校验脚本优先使用 [ish-toolbox](https://github.com/otaku-say/ish-toolbox) 中的静态 `curl`、`gawk` 和 `openssl`，前提是 `ISH_TOOLBOX_BIN` 指向其安装目录。当前 toolbox 不提供独立的 `sha256sum` 或 `mktemp`；脚本使用 `openssl dgst -sha256` 或系统 `sha256sum` 回退，并用基于进程 ID 的 `mkdir` 临时目录代替 `mktemp`。具体测试结果见兼容性说明。
+维护脚本通过当前 PATH 调用 `curl`、`awk` 及 `sha256sum`、BusyBox `sha256sum` 或 `openssl`。如果使用 ish-toolbox 提供这些辅助工具，先按其说明运行安装脚本；无需设置静态安装目录变量。具体测试结果见兼容性说明。
 
 ```sh
 CUBE_SKILL_DIR="/path/to/cube-cli"
@@ -142,39 +144,39 @@ sh "$CUBE_SKILL_DIR/bin/cube-cli" ports "$SID"
 
 ## 更新和卸载
 
-仓库中的技能说明或 wrapper 变更后，更新本地已安装的技能文件：
+更新技能说明或配套文件后，先更新技能包，再运行安装脚本，以重新校验并清除包管理器重新带入的另一架构二进制：
 
 ```sh
 npx skills update cube-cli -g
-```
-
-CLI 二进制独立发布。在已安装技能目录中校验和更新：
-
-```sh
 CUBE_SKILL_DIR="/path/to/installed/cube-cli"
-sh "$CUBE_SKILL_DIR/bin/verify.sh"
-# 退出码 0：两个架构均为当前版本；1：任一架构缺失或过期；2：无法获取最新版本状态。
-sh "$CUBE_SKILL_DIR/bin/update.sh"
-# --force 会重新下载两个架构的二进制。
-sh "$CUBE_SKILL_DIR/bin/update.sh" --force
+sh "$CUBE_SKILL_DIR/scripts/install.sh"
 ```
 
-更新器会在替换前校验上游 Release 的 SHA256。更新后再次运行 `verify.sh`。退出码 2 表示状态未知，不代表二进制当前。
-
-卸载本地技能：
+CLI 二进制独立发布。`scripts/update.sh` 只下载和校验当前架构的 Release asset，原位更新本技能 `bin/<arch>/` 下的文件，然后重新执行安装后处理：
 
 ```sh
+sh "$CUBE_SKILL_DIR/scripts/update.sh"
+sh "$CUBE_SKILL_DIR/scripts/verify.sh"
+```
+
+`verify.sh` 离线校验当前架构二进制、wrapper 和本地 SHA256 清单；它不联网检查上游版本。需要强制重新下载时传 `--force`。上游 Release 地址可通过 `CUBE_CLI_RELEASE_BASE` 覆盖。
+
+卸载先清除本技能写入的 PATH 配置，再由 Skills CLI 移除本地技能文件：
+
+```sh
+sh "$CUBE_SKILL_DIR/scripts/uninstall.sh"
 npx skills remove --global cube-cli
 ```
 
-卸载只会移除本地技能及 CLI 文件，不会删除任何远端沙箱、卷、快照或用户数据。远端清理必须另行处理并事先取得明确批准。
+这不会删除任何远端沙箱、卷、快照或用户数据；远端清理需另行处理并先取得明确批准。
 
 ## 技能目录内文件
 
-- `bin/cube-cli` 按主机架构选择对应二进制。
-- `bin/amd64/cube-cli` 是 Linux amd64/x86_64 二进制；`bin/arm64/cube-cli` 是 Linux arm64/aarch64 二进制。
-- `bin/SHA256SUMS` 保存两个架构二进制的校验值。
-- `bin/verify.sh` 对照上游 Release 校验本地二进制。
-- `bin/update.sh` 下载并校验两个架构的更新。
+- `bin/cube-cli` 按主机架构选择本技能目录内的 CLI 二进制。
+- main 源包包含 `bin/amd64/cube-cli` 与 `bin/arm64/cube-cli`；安装后仅保留当前架构。
+- `bin/SHA256SUMS` 保存 Release 清单中的当前架构哈希；main 源包初始包含两个架构条目。
+- `scripts/install.sh` 验证、裁剪非当前架构并幂等配置 PATH。
+- `scripts/update.sh` 更新当前架构二进制并重新执行安装后处理。
+- `scripts/verify.sh` 离线校验当前架构及本地 SHA256 清单；`scripts/uninstall.sh` 只清理本技能 PATH 配置。
 - [兼容性与测试结果](references/compatibility-tests.md)区分已测试行为与尚未执行的架构/发行版。
 - `references/cli-reference.txt` 保存 CLI 0.2.0 的完整 `help all` 输出；若版本不同，以已安装二进制的帮助为准。

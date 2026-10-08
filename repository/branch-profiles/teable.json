@@ -1,0 +1,13 @@
+{
+  "branch": "teable",
+  "skillPath": "tools",
+  "limits": {
+    "skillPackageBytes": 512000
+  },
+  "payload": {
+    "includeBinaries": false,
+    "runtimeSourceBranch": "main"
+  },
+  "history": "orphan",
+  "skillTemplate": "repository/branch-profiles/teable/SKILL.md.in"
+}

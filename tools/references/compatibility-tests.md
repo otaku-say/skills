@@ -1,32 +1,29 @@
 # 兼容性与测试范围
 
-## 工具包来源
+## 工具包
 
-- 上游：`otaku-say/ish-toolbox` 的 `tools/` 目录。
-- 工具数量：46；每个工具目录均带 `USAGE.md`。
-- 架构：amd64/x86_64 与 arm64/aarch64，各 46 个静态单文件二进制。
-- 上游提供 `SHA256SUMS.amd64`、`SHA256SUMS.arm64` 和 `DOCS.sha256`。同步和安装前逐项校验所有列出的文件。
-- 静态链接和 ELF 架构由上游 `scripts/doctor.sh` 检查；仅通过静态检查的架构不代表已在该架构运行。
+- 上游：`otaku-say/ish-toolbox` 的 `tools/` 目录，共 46 个工具；每个工具目录含 `USAGE.md`。
+- `main` 包含 amd64/x86_64 与 arm64/aarch64 二进制及 `SHA256SUMS.amd64`、`SHA256SUMS.arm64`；安装验证当前架构后移除另一架构。
+- Teable 包不含二进制，仅携带工具说明、生命周期脚本、两个架构的哈希清单和固定 `RUNTIME_SOURCE_COMMIT`。运行时按主机架构逐文件下载到技能目录之外的版本化运行时目录，并逐项校验 SHA256。
+- 上游静态检查覆盖哈希、ELF 架构和静态链接；通过静态检查不代表已在该架构运行。
 
-## 运行环境与范围
+## 本轮验证
 
-安装入口使用 POSIX `/bin/sh`，调用 git 稀疏检出；没有可用 git 时回退到 curl 或 wget 加 tar。校验使用 sha256sum、BusyBox sha256sum 或 openssl。PATH 配置针对常见 POSIX shell、Bash 和 Zsh 启动文件。
-
-| 环境/架构 | 验证范围 | 状态 |
+| 环境/架构 | 验证内容 | 结果 |
 |---|---|---|
-| 当前 Linux 沙箱 amd64/x86_64 | 安装、哈希校验、PATH 配置、命令执行、卸载 | 由维护者逐次记录 |
-| CubeSandbox amd64/x86_64 | 安装、哈希校验、PATH 配置、命令执行、卸载 | 由维护者逐次记录 |
-| arm64/aarch64 | 上游哈希、ELF 架构和静态链接检查 | 未在本机运行时验证 |
-| Debian/Ubuntu、Fedora/RHEL、Arch、Alpine | 静态 musl 二进制可减少发行版 libc 差异；具体系统仍需按目标环境测试 | 未逐一验证 |
+| amd64/x86_64 | main 包 install/verify/uninstall、46 个工具保留当前架构、PATH 配置幂等，以及新 shell 清理重新带入的 arm64 目录 | 临时目录测试通过 |
+| arm64/aarch64 模拟 | mock `uname -m`；main 包保留 arm64、删除 amd64；新 shell 清理重新带入的 amd64 目录 | 临时目录测试通过；未执行 arm64 二进制 |
+| Teable amd64 | 构建包、下载 46 个 amd64 文件、校验清单、重复安装无额外下载、损坏哈希失败后重试、删除所有有标记的版本化运行时 | mock 下载测试通过；未访问公开网络 |
+| Teable 下载回退 | 屏蔽 curl/wget，使用 mock `uclient-fetch -O` 下载当前架构运行时 | 通过；未在 OpenWrt 设备实测 |
+| 发行分支 | 构建包约 149 KB；临时 bare remote 首次发布为无父提交的 orphan 分支，内容仅含 `tools/`；无变化时重跑不产生更新 | 通过；验证使用本地临时 remote |
+| Shell 语法 | 本机 `/bin/sh` 检查仓库 shell 脚本 | 通过；BusyBox 不可用，本轮未运行 ash |
+| arm64 二进制 | 上游哈希、ELF 架构和静态链接检查 | 通过静态检查；未在 arm64 主机运行 |
+| 各目标发行版 | Alpine、Debian、OpenCloudOS、OpenWrt 等 | 未逐发行版测试 |
 
-安装依赖：git，或 curl/wget 与 tar；SHA256 校验需要 sha256sum、BusyBox 或 openssl。执行二进制不需要安装系统包，但个别工具连接网络、证书或调用系统服务时仍可能受沙箱策略影响，详见对应 `USAGE.md`。
+amd64 测试在当前 Linux 主机执行。arm64 的架构选择用 mock `uname` 验证，但 arm64 程序未被执行。`uclient-fetch` 只以 mock 接口验证参数和传输流程，不能替代 OpenWrt 本机测试。BusyBox/ash 当前环境不可用，因此兼容性声明不包含本轮 ash 运行结果。
 
-## 维护者记录
+## 依赖与边界
 
-每次发布前，在下表记录真实测试结果；不要将静态检查写成运行测试。尚未执行时保留“未验证”。
+main 包的安装和验证不需要下载器或 `tar`。Teable 首次安装/更新按优先级使用 PATH 中的 `curl`、`wget` 或 OpenWrt `uclient-fetch`；SHA256 校验使用 `sha256sum`、BusyBox `sha256sum` 或 `openssl`。临时目录通过基于进程 ID 的 `mkdir` 创建，不依赖 `mktemp`。直接将本工具箱加入 PATH，shell 启动配置会检查并清理另一架构，不会为每个命令增加 wrapper。
 
-| 日期 | OS/镜像 | 架构 | 测试内容 | 结果 |
-|---|---|---|---|---|
-| 2026-10-07 | Debian GNU/Linux 13 (trixie) | amd64/x86_64 | 连续两次安装、更新、校验、PATH 加载和卸载；运行 rg、jaq、python3；无效源目录更新失败后确认原二进制不变 | 通过 |
-| 2026-10-07 | CubeSandbox Linux | amd64/x86_64 | 连续安装、校验、运行 rg/jaq/python3、两次更新、失败源保护、登录 shell PATH 加载和两次卸载 | 通过；测试后已回收沙箱 |
-| 2026-10-07 | 上游静态检查 | amd64 与 arm64 | `scripts/doctor.sh` 哈希、ELF 架构和无 PT_INTERP/NEEDED 检查 | 两架构通过；arm64 未运行 |
+工具级兼容性、环境变量和系统服务要求以各自的 `USAGE.md` 为准。静态链接并不能保证每个工具在所有沙箱策略下都能访问网络、证书或系统服务。

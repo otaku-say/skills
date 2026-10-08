@@ -1,23 +1,23 @@
 # 兼容性与测试结果
 
-本次测试的 CLI 版本：`0.2.0`。
+CLI 版本：`0.2.0`。二进制来源与兼容性声明以该版本的 Release 为准。
 
 | 测试项 | 结果 |
 |---|---|
-| Linux `amd64`/`x86_64` 二进制 | 通过：静态链接的 musl ELF；已在 x86_64 Linux 上执行 |
-| Linux `arm64`/`aarch64` 二进制 | 通过：已检查 ELF 架构、静态链接和 Release SHA256；未在本机执行 |
-| `update.sh --force` | 通过：下载两个架构的 Release 文件并校验 SHA256 |
-| `verify.sh` | 通过：两个架构文件均与上游 Release 清单一致 |
-| POSIX Shell 语法 | 通过：使用本机 `/bin/sh` 检查 |
-| 版本与 `help all` | 通过 |
-| 单命令帮助 | 通过：61 个入口，含别名 |
-| `ish-toolbox` 辅助工具 | 通过：使用其 x86_64 静态 `curl`、`gawk`、`openssl` |
-| toolbox 架构与完整性 doctor | amd64、arm64 均通过哈希、ELF 架构和静态链接检查；未实际执行 arm64 程序 |
+| Linux `amd64`/`x86_64` 二进制 | 通过：musl ELF；已在 x86_64 Linux 上执行 CLI 与控制面流程 |
+| Linux `arm64`/`aarch64` 二进制 | 通过：Release SHA256、ELF 架构和静态链接检查；未在 arm64 主机执行 |
+| 当前架构更新 | 在隔离临时副本中以本地 Release mock 测试；amd64 仅请求 amd64 资产，没有请求 arm64 资产 |
+| 更新失败保护 | mock 资产 SHA256 错误时更新失败，现有二进制校验值保持不变；更正资产后重试通过 |
+| 技能包更新后的架构裁剪 | 模拟重新带入 arm64 目录；amd64 wrapper 首次调用时清除该目录并执行本机 CLI |
+| arm64 安装选择 | mock `uname -m` 为 `aarch64`；install 和 verify 选择 arm64 并删除 amd64 目录，未执行 arm64 二进制 |
+| 安装、PATH 与卸载幂等性 | 临时 HOME 中重复 install/uninstall；PATH 区块不重复，卸载只清理本技能区块 |
+| Shell 语法 | 本机 `/bin/sh` 下的仓库 `.sh` 文件通过 `sh -n`；BusyBox 不可用，本轮未运行 ash |
+| 版本与帮助 | 通过：版本、`help all` 和 61 个命令帮助入口（含别名） |
 | 控制面操作 | 通过：健康检查、模板选择、沙箱列表/详情/日志/端口 |
 | 沙箱生命周期 | 通过：创建、设置空闲超时、暂停、恢复，并在确认后删除临时测试沙箱 |
-| 快照 | 暂停/恢复后运行 `snap-ls`，结果为空；未测试独立快照、克隆、回滚或持久卷操作 |
-| Skills CLI 安装/更新/卸载 | 未执行；这里只记录命令用法，不声称这些生命周期命令已经实测 |
+| 快照 | 暂停/恢复后运行 `snap-ls` 结果为空；未测试独立快照、克隆、回滚或持久卷 |
+| Skills CLI 实际安装/更新/卸载 | 未执行；生命周期验证使用临时技能目录模拟包更新，不声称 Skills CLI 本身已实测 |
 
-当前 `ish-toolbox` 不含独立的 `sha256sum` 或 `mktemp`。维护脚本优先使用其中的 `curl`、`gawk`、`openssl`，并回退到系统 `awk`/`sha256sum`；临时目录使用基于进程 ID 的 `mkdir` 创建，不依赖 `mktemp`。
+静态 musl 构建面向使用 glibc 或 musl 的 Linux 发行版。本轮 x86_64 Linux 测试不代表 Debian/Ubuntu、Fedora/RHEL、Arch、Alpine 等发行版均已单独验证；原生 arm64 运行验证也尚未完成。
 
-静态 musl 构建的目标是兼容使用 glibc 或 musl 的主流 Linux 发行版。本次只在可用的 x86_64 Linux 主机执行 CLI；控制面生命周期测试使用 Ubuntu 22.04 x86_64 模板。Debian/Ubuntu、Fedora/RHEL、Arch、Alpine 等发行版的独立运行验证，以及原生 arm64 运行验证，仍未完成；不得将这些平台描述为本次已实测。
+维护脚本优先使用 PATH 中的 `curl`、`awk` 和 SHA256 工具；可将 `ish-toolbox` 的工具目录通过 `ISH_TOOLBOX_BIN` 加入更新脚本的 PATH。toolbox 提供 `curl`、`gawk`、`openssl`，不提供独立 `sha256sum` 或 `mktemp`；脚本可回退到系统 `awk`/`sha256sum`，并用基于进程 ID 的 `mkdir` 创建临时目录。

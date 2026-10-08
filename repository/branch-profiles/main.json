@@ -1,0 +1,13 @@
+{
+  "branch": "main",
+  "skillPath": "tools",
+  "limits": {
+    "skillPackageBytes": null
+  },
+  "payload": {
+    "includeBinaries": true,
+    "runtimeSourceBranch": null
+  },
+  "history": "source",
+  "skillTemplate": "tools/SKILL.md"
+}

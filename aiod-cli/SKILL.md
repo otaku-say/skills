@@ -14,11 +14,13 @@ compatibility: 适用于带静态 musl 构建的 Linux amd64/x86_64 与 arm64/aa
 wrapper 会按主机架构选择 Linux amd64/x86_64 或 arm64/aarch64 二进制。静态 musl 构建面向 Debian/Ubuntu、Fedora/RHEL、Arch、Alpine 等主流 Linux 发行版；本轮只在 x86_64 环境中运行。将尚未实测的发行版或 arm64 运行时视为未验证，并先查看[兼容性与测试结果](references/compatibility-tests.md)。
 
 ```sh
-AIOD_SKILL_DIR="/path/to/aiod-cli"
-sh "$AIOD_SKILL_DIR/bin/update.sh"
+AIOD_SKILL_DIR="/path/to/installed/aiod-cli"
+sh "$AIOD_SKILL_DIR/scripts/install.sh"
 sh "$AIOD_SKILL_DIR/bin/aiod-cli" version
 sh "$AIOD_SKILL_DIR/bin/aiod-cli" help
 ```
+
+`install.sh` 从脚本自身路径推导技能目录，检测主机架构并验证对应二进制；随后删除 `bin/` 中不匹配架构的二进制目录，并将本技能 `bin/` 加入 PATH。Skills 管理器更新技能包后，wrapper 会在下一次调用时再次删除恢复的异架构目录；install.sh 仍建议立即运行以校验并修复 PATH。新 shell 或重新加载 shell 配置后生效。安装不复制或搬移命令文件。
 
 每次操作都要使用目标沙箱的实际 ID，并以已配置的数据面域名构造网关地址。不要猜域名，也不要复用其他沙箱的 URL：
 
@@ -115,47 +117,46 @@ sh "$AIOD_SKILL_DIR/bin/aiod-cli" br-snapshot --interactive
 
 ## 安装、更新和卸载
 
-从本仓库通过 Skills CLI 安装本技能。安装会将技能文件复制到所选 Agent 的技能目录。首次使用前运行 updater，将两个架构的 CLI 二进制下载到本技能的 `bin/` 目录：
+从本仓库通过 Skills CLI 安装本技能。首次安装后运行 `scripts/install.sh`；技能包更新后也必须再次运行它，以验证当前架构、清除技能管理器重新带入的另一架构二进制，并修复 PATH 配置：
 
 ```sh
 npx skills add otaku-say/skills --skill aiod-cli -g
 AIOD_SKILL_DIR="/path/to/installed/aiod-cli"
-sh "$AIOD_SKILL_DIR/bin/update.sh"
+sh "$AIOD_SKILL_DIR/scripts/install.sh"
 ```
 
-仓库文档变更后更新已安装技能文件：
+更新技能说明或维护脚本时，先更新技能包，再运行安装脚本：
 
 ```sh
 npx skills update aiod-cli -g
+sh "$AIOD_SKILL_DIR/scripts/install.sh"
 ```
 
-CLI 二进制独立发布。使用前先校验，过期时再更新：
+CLI 二进制独立发布。`scripts/update.sh` 只下载并校验当前架构的 Release asset，原位更新本技能 `bin/<arch>/` 下的文件，然后重新运行安装流程。更新使用同文件系统暂存和备份，不会把二进制安装到固定系统目录：
 
 ```sh
-AIOD_SKILL_DIR="/path/to/installed/aiod-cli"
-sh "$AIOD_SKILL_DIR/bin/verify.sh"
-# 退出码 0：两个架构均为当前版本；1：任一架构缺失或过期；2：无法获取版本状态。
-sh "$AIOD_SKILL_DIR/bin/update.sh"
-# 仅在确实要重新下载两个架构时使用 --force。
-sh "$AIOD_SKILL_DIR/bin/update.sh" --force
+sh "$AIOD_SKILL_DIR/scripts/update.sh"
+sh "$AIOD_SKILL_DIR/scripts/verify.sh"
 ```
 
-`update.sh` 会先比对上游 Release SHA256，再替换二进制。若 `verify.sh` 退出码为 1，运行 updater 后再校验。退出码为 2 表示状态未知，不代表版本当前。
+`verify.sh` 离线校验当前架构二进制、wrapper 和本地 SHA256 清单；它不联网查询上游。需要强制重新下载时，将 `--force` 传给更新脚本。上游 Release 地址可通过 `AIOD_CLI_RELEASE_BASE` 覆盖。
 
-卸载本地技能：
+卸载先清除本技能写入的 PATH 配置，再由 Skills CLI 移除技能文件：
 
 ```sh
+sh "$AIOD_SKILL_DIR/scripts/uninstall.sh"
 npx skills remove --global aiod-cli
 ```
 
-卸载会删除本地技能文件及其 CLI 二进制，不会删除沙箱或远端文件。删除沙箱应遵循 `cube-cli` 技能中的确认与生命周期规则。
+这不会删除沙箱或远端文件。删除沙箱应遵循 `cube-cli` 技能中的确认与生命周期规则。
 
 ## 技能目录内文件
 
-- `bin/aiod-cli` 根据主机架构选择并运行对应二进制。
-- `bin/amd64/aiod-cli` 是 Linux amd64/x86_64 二进制；`bin/arm64/aiod-cli` 是 Linux arm64/aarch64 二进制。
-- `bin/SHA256SUMS` 保存两个架构二进制的校验值。
-- `bin/update.sh` 从上游下载并校验两个架构的更新。
-- `bin/verify.sh` 对照当前上游 Release 校验本地二进制。
+- `bin/aiod-cli` 根据主机架构选择本技能目录内的 CLI 二进制。
+- `bin/amd64/aiod-cli` 与 `bin/arm64/aiod-cli` 是仓库 main 发布的 Linux 二进制；安装后仅保留当前架构。
+- `bin/SHA256SUMS` 保存 Release 清单中的当前架构哈希；main 源包初始包含两个架构条目。
+- `scripts/install.sh` 验证、裁剪非当前架构并幂等配置 PATH。
+- `scripts/update.sh` 更新当前架构二进制并重新执行安装后处理。
+- `scripts/verify.sh` 离线校验当前架构及本地 SHA256 清单；`scripts/uninstall.sh` 只清理本技能 PATH 配置。
 - [兼容性与测试结果](references/compatibility-tests.md)区分已测试行为与尚未执行的架构/发行版。
 - `references/cli-reference.txt` 保存 CLI 0.2.0 的完整 `help all` 输出；版本不同时以运行时帮助为准。

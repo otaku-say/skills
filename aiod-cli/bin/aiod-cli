@@ -1,15 +1,16 @@
 #!/bin/sh
-# 按当前系统架构选择本技能目录内的 CLI。
-set -u
-DIR="$(cd "$(dirname "$0")" && pwd)"
+# 按主机架构执行本技能 CLI，并清理技能包更新恢复的另一架构二进制。
+set -eu
+DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -L)"
 case "$(uname -m)" in
-  aarch64|arm64) ARCH=arm64 ;;
-  x86_64|amd64) ARCH=amd64 ;;
-  *) echo "不支持的处理器架构：$(uname -m)" >&2; exit 126 ;;
+  aarch64|arm64) ARCH=arm64; OTHER_ARCH=amd64 ;;
+  x86_64|amd64) ARCH=amd64; OTHER_ARCH=arm64 ;;
+  *) printf '不支持的处理器架构：%s\n' "$(uname -m)" >&2; exit 126 ;;
 esac
 BIN="$DIR/$ARCH/aiod-cli"
-
-[ -f "$BIN" ] || { echo "缺少二进制文件 $BIN；请运行 sh $DIR/update.sh" >&2; exit 127; }
-[ -x "$BIN" ] || chmod +x "$BIN" 2>/dev/null || true
-[ -x "$BIN" ] || { echo "二进制文件不可执行：$BIN" >&2; exit 126; }
+[ -f "$BIN" ] || { printf '缺少当前架构二进制：%s；请运行 sh %s/update.sh\n' "$BIN" "$DIR" >&2; exit 127; }
+[ -x "$BIN" ] || { printf '二进制文件不可执行：%s；请运行 sh %s/update.sh\n' "$BIN" "$DIR" >&2; exit 126; }
+OTHER_DIR="$DIR/$OTHER_ARCH"
+[ ! -L "$OTHER_DIR" ] || { printf '拒绝删除符号链接目录：%s\n' "$OTHER_DIR" >&2; exit 126; }
+[ ! -e "$OTHER_DIR" ] || rm -rf "$OTHER_DIR" || { printf '无法清理非当前架构目录：%s\n' "$OTHER_DIR" >&2; exit 1; }
 exec "$BIN" "$@"
