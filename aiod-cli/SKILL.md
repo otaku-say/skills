@@ -20,7 +20,7 @@ sh "$AIOD_SKILL_DIR/bin/aiod-cli" version
 sh "$AIOD_SKILL_DIR/bin/aiod-cli" help
 ```
 
-`install.sh` 从脚本自身路径推导技能目录并配置 PATH。main 完整包会验证本地当前架构二进制并裁剪另一架构；Teable 镜像不带二进制，会从该技能的 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 下载并校验当前架构文件，放入 `${XDG_CACHE_HOME:-$HOME/.cache}/aiod-cli-runtime/`，不写只读技能目录。wrapper 在 main 包中会于下一次调用时继续清理另一架构文件。新 shell 或重新加载 shell 配置后生效；安装不复制或搬移技能文件。
+`install.sh` 从脚本自身路径推导技能目录并配置 PATH。main 完整包会验证本地当前架构二进制并裁剪另一架构；Teable 镜像不带二进制，会从该技能的 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 下载并校验当前架构文件，放入 `${XDG_CACHE_HOME:-$HOME/.cache}/aiod-cli-runtime/`，并将缓存中的当前架构目录加入 PATH，不写只读技能目录。即使导入器去掉了技能 wrapper 的执行位，PATH 中的原生 CLI 仍可直接调用；脚本示例通过 `sh` 调用 wrapper。main 包 wrapper 在下一次调用时继续清理另一架构文件。
 
 每次操作都要使用目标沙箱的实际 ID，并以已配置的数据面域名构造网关地址。不要猜域名，也不要复用其他沙箱的 URL：
 

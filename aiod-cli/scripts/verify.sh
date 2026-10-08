@@ -62,9 +62,11 @@ while read -r expected relative extra || [ -n "${expected:-}" ]; do
   MATCH_COUNT=$((MATCH_COUNT + 1))
 done < "$MANIFEST"
 [ "$MATCH_COUNT" -eq 1 ] || fail '校验清单必须包含且只能包含当前架构的二进制'
-[ -x "$SKILL_BIN/$TOOL" ] || fail "缺少可执行命令 wrapper：$SKILL_BIN/$TOOL"
 if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
+  [ -f "$SKILL_BIN/$TOOL" ] && [ -r "$SKILL_BIN/$TOOL" ] \
+    || fail "Teable 命令 wrapper 不可读：$SKILL_BIN/$TOOL"
   printf '校验通过：%s 的 %s 缓存运行时和命令 wrapper。\n' "$TOOL" "$HOST_ARCH"
 else
+  [ -x "$SKILL_BIN/$TOOL" ] || fail "缺少可执行命令 wrapper：$SKILL_BIN/$TOOL"
   printf '校验通过：%s 的 %s 二进制和命令 wrapper。\n' "$TOOL" "$HOST_ARCH"
 fi

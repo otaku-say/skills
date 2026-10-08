@@ -20,7 +20,7 @@ sh "$CUBE_SKILL_DIR/scripts/install.sh"
 sh "$CUBE_SKILL_DIR/bin/cube-cli" version
 ```
 
-`install.sh` 从脚本自身路径推导技能目录并配置 PATH。main 完整包会验证本地当前架构二进制并裁剪另一架构；Teable 镜像不带二进制，会从该技能的 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 下载并校验当前架构文件，放入 `${XDG_CACHE_HOME:-$HOME/.cache}/cube-cli-runtime/`，不写只读技能目录。wrapper 在 main 包中会于下一次调用时继续清理另一架构文件。新 shell 或重新加载配置后可直接使用 `cube-cli`；安装不会搬移或复制 CLI 文件。
+`install.sh` 从脚本自身路径推导技能目录并配置 PATH。main 完整包会验证本地当前架构二进制并裁剪另一架构；Teable 镜像不带二进制，会从该技能的 `RUNTIME_SOURCE_COMMIT` 指定的 main commit 下载并校验当前架构文件，放入 `${XDG_CACHE_HOME:-$HOME/.cache}/cube-cli-runtime/`，并将缓存中的当前架构目录加入 PATH，不写只读技能目录。即使导入器去掉了技能 wrapper 的执行位，PATH 中的原生 CLI 仍可直接调用；脚本示例通过 `sh` 调用 wrapper。main 包 wrapper 在下一次调用时继续清理另一架构文件。
 
 在运行环境的受保护配置中设置部署变量，不要将它们写入仓库或命令记录：
 

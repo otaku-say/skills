@@ -5,10 +5,11 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -L)"
 SKILL_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -L)"
 SKILL_NAME="${SKILL_DIR##*/}"
 BIN_DIR="$SKILL_DIR/bin"
+PATH_DIR="$BIN_DIR"
 PATH_MARKER="# BEGIN $SKILL_NAME PATH"
 PATH_END="# END $SKILL_NAME PATH"
 [ -n "${HOME:-}" ] || { printf '请先设置 HOME。\n' >&2; exit 1; }
-case "$BIN_DIR" in *:*) printf '技能路径包含 PATH 分隔符 ':'。\n' >&2; exit 1 ;; esac
+case "$PATH_DIR" in *:*) printf '技能路径包含 PATH 分隔符 ':'。\n' >&2; exit 1 ;; esac
 case "$(uname -m)" in
   x86_64|amd64) HOST_ARCH=amd64; OTHER_ARCH=arm64 ;;
   aarch64|arm64) HOST_ARCH=arm64; OTHER_ARCH=amd64 ;;
@@ -16,8 +17,16 @@ case "$(uname -m)" in
 esac
 if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
   sh "$SCRIPT_DIR/update-runtime.sh"
+  IFS= read -r SOURCE_COMMIT < "$SKILL_DIR/RUNTIME_SOURCE_COMMIT"
+  case "$SOURCE_COMMIT" in *[!0-9a-fA-F]*|'') printf 'RUNTIME_SOURCE_COMMIT 格式无效。\n' >&2; exit 1 ;; esac
+  [ "${#SOURCE_COMMIT}" -eq 40 ] || { printf 'RUNTIME_SOURCE_COMMIT 必须是 40 位 Git commit。\n' >&2; exit 1; }
+  CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+  case "$CACHE_HOME" in /*) ;; *) printf 'XDG_CACHE_HOME 必须是绝对路径。\n' >&2; exit 1 ;; esac
+  PATH_DIR="$CACHE_HOME/$SKILL_NAME-runtime/$SOURCE_COMMIT/bin/$HOST_ARCH"
 fi
 sh "$SCRIPT_DIR/verify.sh"
+[ -f "$PATH_DIR/$SKILL_NAME" ] && [ -x "$PATH_DIR/$SKILL_NAME" ] \
+  || { printf 'PATH 目标缺少可执行 CLI：%s\n' "$PATH_DIR/$SKILL_NAME" >&2; exit 1; }
 
 TMP="${TMPDIR:-/tmp}/$SKILL_NAME-install.$$"
 attempt=0
@@ -49,7 +58,7 @@ add_path_block() {
   else
     : > "$stage"
   fi
-  quoted_bin="$(shell_quote "$BIN_DIR")"
+  quoted_bin="$(shell_quote "$PATH_DIR")"
   {
     printf '%s\n' "$PATH_MARKER"
     printf 'case ":${PATH:-}:" in *:%s:*) ;; *) PATH=%s:${PATH:-} ;; esac\n' "$quoted_bin" "$quoted_bin"
@@ -65,4 +74,4 @@ add_path_block "$HOME/.bash_profile"
 add_path_block "$HOME/.zshrc"
 [ ! -L "$BIN_DIR/$OTHER_ARCH" ] || { printf '拒绝删除符号链接目录：%s\n' "$BIN_DIR/$OTHER_ARCH" >&2; exit 1; }
 [ ! -e "$BIN_DIR/$OTHER_ARCH" ] || rm -rf "$BIN_DIR/$OTHER_ARCH"
-printf '%s PATH 已加入 shell 配置：%s；已保留 %s 架构二进制。\n' "$SKILL_NAME" "$BIN_DIR" "$HOST_ARCH"
+printf '%s PATH 已加入 shell 配置：%s；已保留 %s 架构二进制。\n' "$SKILL_NAME" "$PATH_DIR" "$HOST_ARCH"
