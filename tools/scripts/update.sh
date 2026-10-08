@@ -105,7 +105,8 @@ download_file() {
 prune_other_arch() {
   root="$1"
   for tool_dir in "$root"/*; do
-    [ -f "$tool_dir/USAGE.md" ] || continue
+    [ -d "$tool_dir" ] || continue
+    [ -f "$tool_dir/USAGE.md" ] || [ -d "$tool_dir/$HOST_ARCH" ] || continue
     other_dir="$tool_dir/$OTHER_ARCH"
     [ ! -L "$other_dir" ] || fail "拒绝删除符号链接目录：$other_dir"
     [ ! -e "$other_dir" ] || rm -rf "$other_dir"
@@ -221,16 +222,17 @@ add_path_block() {
     printf 'esac\n'
     printf 'if [ -n "$_ISH_TOOLBOX_ARCH" ]; then\n'
     printf '  for _ISH_TOOLBOX_TOOL in "$_ISH_TOOLBOX_ROOT"/*; do\n'
-    printf '    [ -f "$_ISH_TOOLBOX_TOOL/USAGE.md" ] || continue\n'
+    printf '    [ -d "$_ISH_TOOLBOX_TOOL" ] || continue\n'
+    printf '    _ISH_TOOLBOX_NAME="${_ISH_TOOLBOX_TOOL##*/}"\n'
+    printf '    _ISH_TOOLBOX_DIR="$_ISH_TOOLBOX_TOOL/$_ISH_TOOLBOX_ARCH"\n'
+    printf '    [ -x "$_ISH_TOOLBOX_DIR/$_ISH_TOOLBOX_NAME" ] || continue\n'
     printf '    _ISH_TOOLBOX_STALE_DIR="$_ISH_TOOLBOX_TOOL/$_ISH_TOOLBOX_OTHER"\n'
     printf '    if [ ! -L "$_ISH_TOOLBOX_STALE_DIR" ] && [ -e "$_ISH_TOOLBOX_STALE_DIR" ]; then\n'
     printf '      rm -rf "$_ISH_TOOLBOX_STALE_DIR" >/dev/null 2>&1 || :\n'
     printf '    fi\n'
-    printf '    _ISH_TOOLBOX_DIR="$_ISH_TOOLBOX_TOOL/$_ISH_TOOLBOX_ARCH"\n'
-    printf '    [ -d "$_ISH_TOOLBOX_DIR" ] || continue\n'
     printf '    case ":${PATH:-}:" in *:"$_ISH_TOOLBOX_DIR":*) ;; *) PATH="$_ISH_TOOLBOX_DIR:${PATH:-}" ;; esac\n'
     printf '  done\n'
-    printf 'fi\nexport PATH\nunset _ISH_TOOLBOX_ROOT _ISH_TOOLBOX_ARCH _ISH_TOOLBOX_OTHER _ISH_TOOLBOX_DIR _ISH_TOOLBOX_TOOL _ISH_TOOLBOX_STALE_DIR\n'
+    printf 'fi\nexport PATH\nunset _ISH_TOOLBOX_ROOT _ISH_TOOLBOX_ARCH _ISH_TOOLBOX_OTHER _ISH_TOOLBOX_DIR _ISH_TOOLBOX_NAME _ISH_TOOLBOX_TOOL _ISH_TOOLBOX_STALE_DIR\n'
     printf '# END ish-toolbox PATH\n'
   } >> "$profile_stage"
   cat "$profile_stage" > "$profile" || fail "无法更新 shell 配置：$profile"

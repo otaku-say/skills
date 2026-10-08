@@ -3,7 +3,7 @@ name: tools
 description: >-
   当用户需要在 Linux 沙箱中批量安装、更新、校验或卸载 ish-toolbox 工具集，或查找其中 rg、jaq、python3、ssh、curl 等命令的用法时，使用此工具箱技能。它是一个统一技能，不会把每个工具目录单独注册为 Agent 技能。
 compatibility: >-
-  目标发行版包括 Alpine、Debian、OpenCloudOS 和 OpenWrt，支持 Linux amd64/x86_64 与 arm64/aarch64；OpenWrt 仅限这两个架构。二进制为静态单文件。amd64 已完成安装、更新与运行测试；arm64 仅通过上游静态检查，未做运行时测试。PATH 配置目标为 POSIX shell、BusyBox ash、Bash 和 Zsh；本轮仅在本机 /bin/sh 测试，未运行 BusyBox ash。Teable 版运行时下载需要 curl、wget 或 uclient-fetch，并需要 sha256sum、BusyBox sha256sum 或 openssl 之一。
+  目标发行版包括 Alpine、Debian、OpenCloudOS 和 OpenWrt，支持 Linux amd64/x86_64 与 arm64/aarch64；OpenWrt 仅限这两个架构。二进制为静态单文件。amd64 已完成安装、更新与运行测试；arm64 仅通过上游静态检查，未做运行时测试。PATH 配置目标为 POSIX shell、BusyBox ash、Bash 和 Zsh；本轮在本机 `/bin/sh` 和仓库内 amd64 BusyBox ash 测试，未在 OpenWrt 设备运行。Teable 版运行时下载需要 curl、wget 或 uclient-fetch，并需要 sha256sum、BusyBox sha256sum 或 openssl 之一。
 ---
 
 # ish-toolbox 工具箱
