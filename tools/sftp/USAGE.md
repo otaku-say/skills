@@ -42,7 +42,7 @@ timeout 10 sftp -S /nonexistent/ssh -b /tmp/sftp_demo/batch.txt git@github.com; 
 
 ## iSH 注意事项
 
-- 依赖 `/usr/local/bin/ssh`（见 scp 文档同款证据链）：`-S /nonexistent/ssh` 实测报 `exec: …: No such file or directory`。注册检查 `ls -l /usr/local/bin/ssh`；重置后按工具箱技能的安装步骤重新运行 `scripts/install.sh`。
+- 依赖 `/usr/local/bin/ssh`（见 scp 文档同款证据链）：`-S /nonexistent/ssh` 实测报 `exec: …: No such file or directory`。注册检查 `ls -l /usr/local/bin/ssh`；重置后 `sh /var/minis/skills/ish-toolbox/bin/install.sh`。
 - 注意：`sftp -v` **不像 scp 那样打印 “Executing:” 行**（实测没有）；验证依赖请用 `-S` 负例或 scp 侧输出。
 - 首次连接 accept-new / ssh-keyscan；known_hosts 默认写 `/root/.ssh/`（可用 `-o UserKnownHostsFile` 重定向）。
 - 交互模式（不带 `-b`）从 stdin 收命令，易与 Agent 管道打架——统一用 `-b`。

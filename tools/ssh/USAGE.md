@@ -57,7 +57,7 @@ timeout 20 ssh -T -o BatchMode=yes user@host 'uname -a'
 - 网络命令一律套 `timeout N`；被击杀返回 143。
 - DNS 读 `/etc/resolv.conf`（由 iOS 托管，别改）；解析失败先换 IP/端口排查。
 - `BatchMode=yes` 防止任何交互提示挂住，Agent 场景建议默认加。
-- 纯静态二进制、无 wrapper；重置后按工具箱技能的安装步骤重新运行 `scripts/install.sh`。
+- 纯静态二进制、无 wrapper：`readlink /usr/local/bin/ssh` 核对；重置后 `sh /var/minis/skills/ish-toolbox/bin/install.sh` 重新注册。
 
 ## 相关工具
 

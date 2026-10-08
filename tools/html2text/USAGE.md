@@ -11,7 +11,7 @@ curl -s https://example.com | html2text
 html2text page.html
 
 # 2) 干净文本（推荐给 Agent / 存档）：关掉强调字符
-
+  
   hmm 保持简单下行
   html2text -nobs < page.html
 
