@@ -7,6 +7,6 @@ if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
   [ "$#" -eq 0 ] || { printf 'Teable 运行时更新不接受参数。\n' >&2; exit 2; }
   sh "$SCRIPT_DIR/update-runtime.sh"
 else
-  sh "$SKILL_DIR/bin/update.sh" "$@"
+  sh "$SCRIPT_DIR/update-release.sh" "$@"
 fi
 sh "$SCRIPT_DIR/install.sh"

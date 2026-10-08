@@ -42,15 +42,18 @@ hash_file() {
 download_file() {
   url="$1"
   output="$2"
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --retry 2 -o "$output" "$url" || fail "无法下载 $TOOL 当前架构运行时"
-  elif command -v wget >/dev/null 2>&1; then
-    wget -q -O "$output" "$url" || fail "无法下载 $TOOL 当前架构运行时"
-  elif command -v uclient-fetch >/dev/null 2>&1; then
-    uclient-fetch -O "$output" "$url" || fail "uclient-fetch 无法下载 $TOOL 当前架构运行时"
-  else
-    fail '需要 curl、wget 或 uclient-fetch 下载运行时'
+  if command -v wget >/dev/null 2>&1; then
+    if wget -q -O "$output" "$url"; then return 0; fi
+    printf 'wget 下载失败，尝试 curl 回退\n' >&2
   fi
+  if command -v curl >/dev/null 2>&1; then
+    if curl -q -fsSL --retry 2 --retry-delay 2 -o "$output" "$url"; then return 0; fi
+    printf 'curl 下载失败，尝试 uclient-fetch 回退\n' >&2
+  fi
+  if command -v uclient-fetch >/dev/null 2>&1; then
+    if uclient-fetch -O "$output" "$url"; then return 0; fi
+  fi
+  fail "无法下载 $TOOL 当前架构运行时"
 }
 
 verify_payload() {
