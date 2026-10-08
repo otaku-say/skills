@@ -8,7 +8,7 @@ compatibility: >-
 
 # ish-toolbox Teable 版
 
-这是为单独构建 `tools` 轻量技能包保留的兼容模板。当前完整 Teable 分支直接镜像 main 的 `tools/SKILL.md`，只剔除架构二进制；运行时按 `RUNTIME_SOURCE_COMMIT` 下载当前架构文件到 `${XDG_CACHE_HOME:-$HOME/.cache}/ish-toolbox-runtime/<main-commit>/`，并校验 SHA256。安装脚本不得写入只读技能目录，也不得复制或移动技能文件。
+这是为单独构建 `tools` 轻量技能包保留的兼容模板。当前完整 Teable 分支直接镜像 main 的 `tools/SKILL.md`，只剔除架构二进制；运行时按 `RUNTIME_SOURCE_COMMIT` 下载当前架构文件到 `${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}/ish-toolbox/<main-commit>/`，并校验 SHA256。默认运行时目录位于持久 workspace 下；显式设置 `TEABLE_SKILLS_RUNTIME_HOME` 时必须指向持久目录。安装脚本不得写入只读技能目录，也不得复制或移动技能文件。
 
 ## 安装与更新
 

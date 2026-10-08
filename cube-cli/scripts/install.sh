@@ -20,10 +20,11 @@ if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
   IFS= read -r SOURCE_COMMIT < "$SKILL_DIR/RUNTIME_SOURCE_COMMIT"
   case "$SOURCE_COMMIT" in *[!0-9a-fA-F]*|'') printf 'RUNTIME_SOURCE_COMMIT 格式无效。\n' >&2; exit 1 ;; esac
   [ "${#SOURCE_COMMIT}" -eq 40 ] || { printf 'RUNTIME_SOURCE_COMMIT 必须是 40 位 Git commit。\n' >&2; exit 1; }
-  CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-  case "$CACHE_HOME" in /*) ;; *) printf 'XDG_CACHE_HOME 必须是绝对路径。\n' >&2; exit 1 ;; esac
-  PATH_DIR="$CACHE_HOME/$SKILL_NAME-runtime/$SOURCE_COMMIT/bin/$HOST_ARCH"
+  RUNTIME_HOME="${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}"
+  case "$RUNTIME_HOME" in /*) ;; *) printf 'TEABLE_SKILLS_RUNTIME_HOME 必须是绝对路径。\n' >&2; exit 1 ;; esac
+  PATH_DIR="$RUNTIME_HOME/$SKILL_NAME/$SOURCE_COMMIT/bin/$HOST_ARCH"
 fi
+case "$PATH_DIR" in *:*) printf '运行时路径包含 PATH 分隔符 ':'。\n' >&2; exit 1 ;; esac
 sh "$SCRIPT_DIR/verify.sh"
 [ -f "$PATH_DIR/$SKILL_NAME" ] && [ -x "$PATH_DIR/$SKILL_NAME" ] \
   || { printf 'PATH 目标缺少可执行 CLI：%s\n' "$PATH_DIR/$SKILL_NAME" >&2; exit 1; }

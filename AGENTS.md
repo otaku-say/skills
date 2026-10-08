@@ -47,7 +47,7 @@
 
 - `main` 保留完整技能源、工具说明和所有架构的主发行二进制。
 - Teable 及其他受包大小限制的平台分支由 main 的 branch profile 与构建器生成，使用独立 orphan 历史；策略不能依赖本地硬编码路径。
-- Teable 完整镜像 main 的仓库文件树，包括根目录 README 和规则文档，以及所有现有和未来顶层技能。构建器递归移除技能目录中名为 `amd64` 或 `arm64` 的架构二进制目录；包含二进制的技能要有固定 `RUNTIME_SOURCE_COMMIT`，并将当前架构运行时下载到 `${XDG_CACHE_HOME:-$HOME/.cache}`，不得写入只读技能目录。
+- Teable 完整镜像 main 的仓库文件树，包括根目录 README 和规则文档，以及所有现有和未来顶层技能。构建器递归移除技能目录中名为 `amd64` 或 `arm64` 的架构二进制目录；包含二进制的技能要有固定 `RUNTIME_SOURCE_COMMIT`，并将当前架构运行时下载到 `${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}/<skill>`，默认落在持久 workspace 下；显式设置 `TEABLE_SKILLS_RUNTIME_HOME` 时必须指向持久目录。不得写入只读技能目录。
 - Teable 镜像总大小上限为 512000 字节；校验器动态发现所有顶层技能并要求生命周期脚本齐全。新增技能无需维护静态技能名单，但必须遵守架构目录、运行时下载和校验约定。
 - GitHub Actions 在 main 的每次 push 后自动构建并同步公开 `teable` 分支；定时任务若同步上游并修改 main 内容，也在同一次运行中同步镜像。手动触发的 `publish` 输入仍可用于显式发布。命令行发布必须显式传入 `--push`。
 

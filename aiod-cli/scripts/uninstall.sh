@@ -29,9 +29,9 @@ fi
 [ -n "${HOME:-}" ] || { printf '请先设置 HOME。\n' >&2; exit 1; }
 RUNTIME_ROOT=""
 if [ "$PURGE_RUNTIME" -eq 1 ]; then
-  CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-  case "$CACHE_HOME" in /*) ;; *) printf 'XDG_CACHE_HOME 必须是绝对路径。\n' >&2; exit 1 ;; esac
-  RUNTIME_ROOT="$CACHE_HOME/$SKILL_NAME-runtime"
+  RUNTIME_HOME="${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}"
+  case "$RUNTIME_HOME" in /*) ;; *) printf 'TEABLE_SKILLS_RUNTIME_HOME 必须是绝对路径。\n' >&2; exit 1 ;; esac
+  RUNTIME_ROOT="$RUNTIME_HOME/$SKILL_NAME"
 fi
 
 TMP="${TMPDIR:-/tmp}/$SKILL_NAME-uninstall.$$"

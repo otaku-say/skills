@@ -32,9 +32,9 @@ if [ -f "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" ]; then
     || fail '无法读取 RUNTIME_SOURCE_COMMIT'
   case "$source_commit" in *[!0-9a-fA-F]*|'') fail 'RUNTIME_SOURCE_COMMIT 格式无效' ;; esac
   [ "${#source_commit}" -eq 40 ] || fail 'RUNTIME_SOURCE_COMMIT 必须是 40 位 Git commit'
-  cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
-  case "$cache_home" in /*) ;; *) fail 'XDG_CACHE_HOME 必须是绝对路径' ;; esac
-  runtime_dir="$cache_home/$TOOL-runtime/$source_commit"
+  runtime_home="${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}"
+  case "$runtime_home" in /*) ;; *) fail 'TEABLE_SKILLS_RUNTIME_HOME 必须是绝对路径' ;; esac
+  runtime_dir="$runtime_home/$TOOL/$source_commit"
   runtime_marker="$runtime_dir/.$TOOL-runtime-managed"
   [ ! -L "$runtime_dir" ] && [ -f "$runtime_marker" ] \
     || fail '运行时二进制尚未安装；请运行 scripts/install.sh'

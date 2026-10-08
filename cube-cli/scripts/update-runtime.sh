@@ -17,9 +17,9 @@ IFS= read -r SOURCE_COMMIT < "$SKILL_DIR/RUNTIME_SOURCE_COMMIT" \
   || fail '无法读取 RUNTIME_SOURCE_COMMIT'
 case "$SOURCE_COMMIT" in *[!0-9a-fA-F]*|'') fail 'RUNTIME_SOURCE_COMMIT 格式无效' ;; esac
 [ "${#SOURCE_COMMIT}" -eq 40 ] || fail 'RUNTIME_SOURCE_COMMIT 必须是 40 位 Git commit'
-CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-case "$CACHE_HOME" in /*) ;; *) fail 'XDG_CACHE_HOME 必须是绝对路径' ;; esac
-RUNTIME_ROOT="$CACHE_HOME/$TOOL-runtime"
+RUNTIME_HOME="${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}"
+case "$RUNTIME_HOME" in /*) ;; *) fail 'TEABLE_SKILLS_RUNTIME_HOME 必须是绝对路径' ;; esac
+RUNTIME_ROOT="$RUNTIME_HOME/$TOOL"
 RUNTIME_DIR="$RUNTIME_ROOT/$SOURCE_COMMIT"
 MARKER="$RUNTIME_DIR/.$TOOL-runtime-managed"
 PAYLOAD_ROOT="$RUNTIME_DIR/bin"
