@@ -12,9 +12,10 @@ usage() {
   printf '用法：sh %s [选项]\n\n' "$0"
   printf '  （无选项）                 校验并注册工具箱 PATH（默认行为）\n'
   printf '  --set-default-busybox      校验注册后，将工具箱 busybox 设为默认终端：\n'
-  printf '                             Alpine 系：替换 /bin/busybox（原版备份为 /bin/busybox.pre-toolbox）\n'
-  printf '                             其他发行版：建立 applet 链接（默认 /usr/local/bin）\n'
-  printf '  --unset-default-busybox    撤销默认 busybox 设定（还原系统原版 / 移除 applet 链接）\n'
+  printf '                             系统自带 busybox 先备份（<路径>.pre-toolbox）再原地替换；\n'
+  printf '                             busybox 系（Alpine/iSH）：替换 /bin/busybox 即刻全面生效；\n'
+  printf '                             其他发行版：另在目标目录（默认 /usr/local/bin）建立 applet 链接\n'
+  printf '  --unset-default-busybox    还原系统原版 busybox / 移除 applet 链接\n'
   printf '  --busybox-links-dir=DIR    links 模式目标目录，须为绝对路径（默认 /usr/local/bin）\n'
   printf '  --help                     显示本帮助\n'
 }
@@ -48,8 +49,26 @@ case "$(uname -m)" in
   *) fail "不支持的处理器架构：$(uname -m)" ;;
 esac
 
+hash_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v busybox >/dev/null 2>&1; then
+    busybox sha256sum "$1" | awk '{print $1}'
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$1" | awk '{print $NF}'
+  else
+    fail "校验需要 sha256sum、BusyBox 或 openssl"
+  fi
+}
+
 default_busybox_mode() {
-  if [ -f /etc/alpine-release ] || { [ -L /bin/sh ] && [ "$(readlink /bin/sh)" = "/bin/busybox" ]; }; then
+  case "${ISH_TOOLBOX_BUSYBOX_MODE:-}" in
+    replace|links) printf '%s\n' "$ISH_TOOLBOX_BUSYBOX_MODE"; return 0 ;;
+    '') ;;
+    *) fail "ISH_TOOLBOX_BUSYBOX_MODE 仅支持 replace|links" ;;
+  esac
+  if [ -f /etc/alpine-release ] \
+    || { [ -L /bin/sh ] && { [ "$(readlink /bin/sh)" = "/bin/busybox" ] || [ "$(readlink /bin/sh)" = "busybox" ]; }; }; then
     printf 'replace\n'
   else
     printf 'links\n'
@@ -58,15 +77,23 @@ default_busybox_mode() {
 
 unset_default_busybox() {
   handled=0
-  BAK=/bin/busybox.pre-toolbox
-  if [ -f "$BAK" ] && [ ! -L "$BAK" ]; then
+  for f in /bin/busybox /usr/bin/busybox /sbin/busybox /usr/sbin/busybox; do
+    BAK="$f.pre-toolbox"
+    if [ ! -f "$BAK" ]; then continue; fi
+    if [ -L "$BAK" ]; then continue; fi
     "$BAK" sh -c 'exit 0' >/dev/null 2>&1 || fail "备份文件无法运行，拒绝还原：$BAK"
-    cp "$BAK" /bin/busybox || fail "无法还原 /bin/busybox（需要 root 权限）"
-    chmod 755 /bin/busybox
+    # 幂等护栏：当前已是系统原版（与备份一致）时不重复写入
+    if [ -f "$f" ] && [ "$(hash_file "$f")" = "$(hash_file "$BAK")" ]; then
+      printf '  %s 当前已是系统原版（与备份一致），无需还原\n' "$f"
+      handled=1
+      continue
+    fi
+    cp "$BAK" "$f" || fail "无法还原（需要 root 权限）：$f"
+    chmod 755 "$f"
+    command -v restorecon >/dev/null 2>&1 && restorecon "$f" 2>/dev/null || true
     handled=1
-    printf '已还原系统原版 busybox（来源：%s）\n' "$BAK"
-    printf '  备份文件保留：%s（不再需要时可手动删除）\n' "$BAK"
-  fi
+    printf '已还原系统原版 busybox：%s（来源：%s）\n' "$f" "$BAK"
+  done
   LINKS_DIR="${BUSYBOX_LINKS_DIR:-/usr/local/bin}"
   if [ -d "$LINKS_DIR" ]; then
     removed=0
@@ -85,7 +112,7 @@ unset_default_busybox() {
     fi
   fi
   if [ "$handled" -eq 0 ]; then
-    printf '未发现工具箱 busybox 的默认化痕迹（检查了 %s 与 %s）\n' "$BAK" "$LINKS_DIR"
+    printf '未发现工具箱 busybox 的默认化痕迹（检查了 /bin、/usr/bin、/sbin、/usr/sbin 的 .pre-toolbox 与 %s）\n' "$LINKS_DIR"
   fi
 }
 
@@ -93,18 +120,6 @@ if [ "$UNSET_DEFAULT_BUSYBOX" -eq 1 ]; then
   unset_default_busybox
   exit 0
 fi
-
-hash_file() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
-  elif command -v busybox >/dev/null 2>&1; then
-    busybox sha256sum "$1" | awk '{print $1}'
-  elif command -v openssl >/dev/null 2>&1; then
-    openssl dgst -sha256 "$1" | awk '{print $NF}'
-  else
-    fail "校验需要 sha256sum、BusyBox 或 openssl"
-  fi
-}
 
 verify_manifest() {
   manifest="$1"
@@ -322,6 +337,56 @@ add_path_block "$HOME/.bashrc"
 add_path_block "$HOME/.bash_profile"
 add_path_block "$HOME/.zshrc"
 
+# 替换系统自带 busybox（发现即处理；usrmerge 下多路径自动去重）：备份 + 原地替换 + 自检 + 失败回滚
+replace_system_busybox() {
+  BIN_SHA="$(hash_file "$BIN")"
+  SYS_BB_FOUND=0
+  SEEN=""
+  for f in /bin/busybox /usr/bin/busybox /sbin/busybox /usr/sbin/busybox; do
+    [ -e "$f" ] || continue
+    if [ -L "$f" ] && [ ! -e "$f" ]; then printf '  跳过失效符号链接：%s\n' "$f"; continue; fi
+    r="$(readlink -f "$f" 2>/dev/null || true)"
+    if [ -z "$r" ]; then r="$f"; fi
+    if [ -L "$f" ]; then printf '  符号链接 %s -> %s\n' "$f" "$r"; fi
+    case " $SEEN " in *" $r "*) continue ;; esac
+    SEEN="$SEEN $r"
+    [ -f "$r" ] || continue
+    desc="$("$r" 2>&1 | head -n 1 || true)"
+    case "$desc" in
+      *BusyBox*|*busybox*) ;;
+      *) printf '  跳过非 busybox 文件：%s\n' "$r"; continue ;;
+    esac
+    SYS_BB_FOUND=$((SYS_BB_FOUND + 1))
+    if [ "$(hash_file "$r")" = "$BIN_SHA" ]; then
+      printf '  已是工具箱版本：%s\n' "$r"
+      continue
+    fi
+    BAK="$r.pre-toolbox"
+    if [ -f "$BAK" ] && [ ! -L "$BAK" ]; then
+      if [ "$(hash_file "$BAK")" = "$BIN_SHA" ]; then
+        cp "$r" "$BAK" && chmod 755 "$BAK" \
+          && printf '  备份内容为工具箱版本，已重新备份系统原版：%s\n' "$BAK"
+      fi
+    else
+      cp "$r" "$BAK" || fail "无法备份系统 busybox（需要 root 权限）：$BAK"
+      chmod 755 "$BAK"
+      printf '  系统原版已备份：%s\n' "$BAK"
+    fi
+    cp "$BIN" "$r" || fail "无法替换（需要 root 权限）：$r"
+    chmod 755 "$r"
+    command -v restorecon >/dev/null 2>&1 && restorecon "$r" 2>/dev/null || true
+    if ! "$r" sh -c 'exit 0' >/dev/null 2>&1; then
+      cp "$BAK" "$r" >/dev/null 2>&1 || printf '警告：回滚失败，请手动恢复：cp %s %s\n' "$BAK" "$r" >&2
+      chmod 755 "$r" 2>/dev/null || :
+      fail "替换后自检失败，已尝试回滚：$r"
+    fi
+    printf '  ✓ 已替换系统自带 busybox：%s\n' "$r"
+  done
+  if [ "$SYS_BB_FOUND" -eq 0 ]; then
+    printf '  未发现系统自带 busybox（跳过替换步骤）\n'
+  fi
+}
+
 set_default_busybox() {
   BIN="$PAYLOAD_ROOT/busybox/$HOST_ARCH/busybox"
   [ -f "$BIN" ] && [ -x "$BIN" ] || fail "工具箱缺少 $HOST_ARCH 版 busybox：$BIN"
@@ -330,92 +395,69 @@ set_default_busybox() {
   [ -n "$BB_DESC" ] || BB_DESC="工具箱 busybox"
 
   mode="$(default_busybox_mode)"
+
+  printf '→ 替换系统自带 busybox（如有；备份后缀 .pre-toolbox）\n'
+  replace_system_busybox
+
   if [ "$mode" = replace ]; then
-    SYS_BB=/bin/busybox
-    BAK=/bin/busybox.pre-toolbox
-    [ -f "$SYS_BB" ] || fail "系统缺少 $SYS_BB，无法使用 replace 模式"
-    [ ! -L "$SYS_BB" ] || fail "拒绝操作符号链接：$SYS_BB"
-    bin_sha="$(hash_file "$BIN")"
-    sys_sha="$(hash_file "$SYS_BB")"
-    if [ "$bin_sha" = "$sys_sha" ]; then
-      printf '默认 busybox 已是工具箱版本，无需处理（%s）\n' "$SYS_BB"
-      return 0
-    fi
-    if [ -f "$BAK" ] && [ ! -L "$BAK" ]; then
-      bak_sha="$(hash_file "$BAK")"
-      if [ "$bak_sha" = "$bin_sha" ]; then
-        cp "$SYS_BB" "$BAK" || fail "无法更新备份：$BAK"
-        chmod 755 "$BAK"
-        printf '检测到备份内容为工具箱版本，已重新备份系统原版\n'
-      fi
-    else
-      cp "$SYS_BB" "$BAK" || fail "无法备份系统 busybox（需要 root 权限）：$BAK"
-      chmod 755 "$BAK"
-      printf '系统原版 busybox 已备份：%s\n' "$BAK"
-    fi
-    cp "$BIN" "$SYS_BB" || fail "无法替换 $SYS_BB（需要 root 权限）"
-    chmod 755 "$SYS_BB"
-    if ! "$SYS_BB" sh -c 'exit 0' >/dev/null 2>&1; then
-      cp "$BAK" "$SYS_BB" >/dev/null 2>&1 || printf '警告：回滚失败，请手动恢复：cp %s %s\n' "$BAK" "$SYS_BB" >&2
-      chmod 755 "$SYS_BB" 2>/dev/null || :
-      fail "新 busybox 验证失败，已尝试回滚（备份：$BAK）"
-    fi
-    printf '默认 busybox 已切换为工具箱版本（replace 模式）\n'
+    [ -f /bin/busybox ] || fail "busybox 系系统却未找到 /bin/busybox，异常"
+    [ "$(hash_file /bin/busybox)" = "$(hash_file "$BIN")" ] || fail "/bin/busybox 不是工具箱版本，替换未完成"
+    printf '✓ 默认 busybox 已切换为工具箱版本（busybox 系：/bin/sh 与全部 applet 即刻生效）\n'
     printf '  版本：%s\n' "$BB_DESC"
-    printf '  系统原版备份：%s\n' "$BAK"
+    printf '  系统原版备份：/bin/busybox.pre-toolbox\n'
+    printf '  还原命令：sh %s --unset-default-busybox\n' "$0"
+    return 0
+  fi
+  LINKS_DIR="${BUSYBOX_LINKS_DIR:-/usr/local/bin}"
+  if [ ! -d "$LINKS_DIR" ]; then
+    mkdir -p "$LINKS_DIR" || fail "无法创建目录：$LINKS_DIR（需要 root 权限）"
+  fi
+  [ -w "$LINKS_DIR" ] || fail "目录不可写：$LINKS_DIR（请用 root/sudo 运行，或用 --busybox-links-dir 指定其他目录）"
+  "$BIN" --list > "$TMP/busybox-applets" 2>/dev/null || fail "无法获取 busybox applet 列表"
+  created=0; updated=0; skipped=0; conflicts=0; conflict_list=""
+  while IFS= read -r applet || [ -n "$applet" ]; do
+    if [ -z "$applet" ]; then continue; fi
+    if [ "$applet" = busybox ]; then continue; fi
+    dest="$LINKS_DIR/$applet"
+    if [ -L "$dest" ]; then
+      target="$(readlink "$dest")"
+      if [ "$target" = "$BIN" ]; then
+        skipped=$((skipped + 1))
+        continue
+      fi
+      case "$target" in
+        */busybox/"$HOST_ARCH"/busybox)
+          ln -sfn "$BIN" "$dest" || fail "无法更新链接：$dest"
+          updated=$((updated + 1))
+          continue ;;
+      esac
+      conflicts=$((conflicts + 1))
+      conflict_list="$conflict_list $applet"
+      continue
+    fi
+    if [ -e "$dest" ]; then
+      conflicts=$((conflicts + 1))
+      conflict_list="$conflict_list $applet"
+      continue
+    fi
+    ln -s "$BIN" "$dest" || fail "无法创建链接：$dest"
+    created=$((created + 1))
+  done < "$TMP/busybox-applets"
+  printf '✓ 工具箱 busybox 已就位（links 步完成）\n'
+  printf '  版本：%s\n' "$BB_DESC"
+  printf '  目标目录：%s（新建 %s / 更新 %s / 跳过 %s / 冲突 %s）\n' "$LINKS_DIR" "$created" "$updated" "$skipped" "$conflicts"
+  if [ "$conflicts" -gt 0 ]; then
+    printf '  冲突 applet（保留原文件）：%s\n' "$(printf '%s' "$conflict_list" | cut -c1-160)"
+  fi
+  if case ":${PATH:-}:" in *":$LINKS_DIR:"*) true ;; *) false ;; esac; then
+    printf '  已位于 PATH：%s\n' "$LINKS_DIR"
+  else
+    printf '  注意：%s 不在当前 PATH 中，请检查 shell 配置\n' "$LINKS_DIR"
+  fi
+  if [ "$LINKS_DIR" = /usr/local/bin ]; then
     printf '  还原命令：sh %s --unset-default-busybox\n' "$0"
   else
-    LINKS_DIR="${BUSYBOX_LINKS_DIR:-/usr/local/bin}"
-    if [ ! -d "$LINKS_DIR" ]; then
-      mkdir -p "$LINKS_DIR" || fail "无法创建目录：$LINKS_DIR（需要 root 权限）"
-    fi
-    [ -w "$LINKS_DIR" ] || fail "目录不可写：$LINKS_DIR（请用 root/sudo 运行，或用 --busybox-links-dir 指定其他目录）"
-    "$BIN" --list > "$TMP/busybox-applets" 2>/dev/null || fail "无法获取 busybox applet 列表"
-    created=0; updated=0; skipped=0; conflicts=0; conflict_list=""
-    while IFS= read -r applet || [ -n "$applet" ]; do
-      if [ -z "$applet" ]; then continue; fi
-      if [ "$applet" = busybox ]; then continue; fi
-      dest="$LINKS_DIR/$applet"
-      if [ -L "$dest" ]; then
-        target="$(readlink "$dest")"
-        if [ "$target" = "$BIN" ]; then
-          skipped=$((skipped + 1))
-          continue
-        fi
-        case "$target" in
-          */busybox/"$HOST_ARCH"/busybox)
-            ln -sfn "$BIN" "$dest" || fail "无法更新链接：$dest"
-            updated=$((updated + 1))
-            continue ;;
-        esac
-        conflicts=$((conflicts + 1))
-        conflict_list="$conflict_list $applet"
-        continue
-      fi
-      if [ -e "$dest" ]; then
-        conflicts=$((conflicts + 1))
-        conflict_list="$conflict_list $applet"
-        continue
-      fi
-      ln -s "$BIN" "$dest" || fail "无法创建链接：$dest"
-      created=$((created + 1))
-    done < "$TMP/busybox-applets"
-    printf '默认 busybox 已设为工具箱版本（links 模式）\n'
-    printf '  版本：%s\n' "$BB_DESC"
-    printf '  目标目录：%s（新建 %s / 更新 %s / 跳过 %s / 冲突 %s）\n' "$LINKS_DIR" "$created" "$updated" "$skipped" "$conflicts"
-    if [ "$conflicts" -gt 0 ]; then
-      printf '  冲突 applet（保留原文件）：%s\n' "$(printf '%s' "$conflict_list" | cut -c1-160)"
-    fi
-    if case ":${PATH:-}:" in *":$LINKS_DIR:"*) true ;; *) false ;; esac; then
-      printf '  已位于 PATH：%s\n' "$LINKS_DIR"
-    else
-      printf '  注意：%s 不在当前 PATH 中，请检查 shell 配置\n' "$LINKS_DIR"
-    fi
-    if [ "$LINKS_DIR" = /usr/local/bin ]; then
-      printf '  还原命令：sh %s --unset-default-busybox\n' "$0"
-    else
-      printf '  还原命令：sh %s --unset-default-busybox --busybox-links-dir=%s\n' "$0" "$LINKS_DIR"
-    fi
+    printf '  还原命令：sh %s --unset-default-busybox --busybox-links-dir=%s\n' "$0" "$LINKS_DIR"
   fi
 }
 
