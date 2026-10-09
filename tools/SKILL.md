@@ -43,6 +43,25 @@ sh /path/to/installed/tools/scripts/verify.sh
 
 main 版使用技能包中已校验的当前架构二进制；Teable 版只从固定 main commit 下载当前架构。重复运行安装、更新、验证不会增加 PATH 重复项。校验失败时不会将未校验的运行时路径加入 PATH。
 
+## 将 BusyBox 设为默认终端（可选）
+
+工具箱自带 BusyBox 1.38.0 静态单文件（408 个 applet，比 Alpine 3.21 与 iSH 系统自带的 1.37 更新）。可将其设为系统默认，脚本按 `uname -m` 自动选择当前架构二进制并自动判定模式：
+
+```sh
+sh /path/to/installed/tools/scripts/install.sh --set-default-busybox
+```
+
+- **Alpine / iSH 系**（存在 `/etc/alpine-release` 或 `/bin/sh` 指向 `/bin/busybox`）：替换 `/bin/busybox`，系统原版备份为 `/bin/busybox.pre-toolbox`；替换后系统 applet 与 `/bin/sh` 立即使用工具箱版本，替换失败会自动回滚。
+- **其他发行版**（Debian/Ubuntu/OpenCloudOS/OpenWrt 等）：在目标目录（默认 `/usr/local/bin`，需 root 或 sudo）建立全部 applet 软链，不触碰系统文件；目录中已存在的同名文件不会被覆盖（计入"冲突"）。目标目录可用 `--busybox-links-dir=DIR` 指定，须为绝对路径。
+
+还原系统原状：
+
+```sh
+sh /path/to/installed/tools/scripts/install.sh --unset-default-busybox
+```
+
+`--set-default-busybox` 会先完成常规校验与 PATH 注册再设定；`--unset-default-busybox` 不依赖校验，可在工具箱损坏时直接还原；自定义目录的还原需带相同的 `--busybox-links-dir`。重复执行 set 与 unset 均幂等。
+
 ## 使用工具与说明
 
 重新打开 shell 或重新加载 shell 配置后，可直接按命令名调用：

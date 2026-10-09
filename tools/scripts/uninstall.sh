@@ -93,3 +93,4 @@ if [ "$PURGE_RUNTIME" -eq 1 ] && [ -d "$RUNTIME_ROOT" ]; then
   rmdir "$RUNTIME_ROOT" 2>/dev/null || true
 fi
 printf '已清理工具箱 PATH 配置。\n'
+printf '提示：如曾设定默认 busybox，可运行 scripts/install.sh --unset-default-busybox 还原系统原状。\n'
