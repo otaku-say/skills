@@ -17,10 +17,14 @@
 | Teable 下载回退 | 屏蔽 curl/wget，使用 mock `uclient-fetch -O` 下载当前架构运行时 | 通过；未在 OpenWrt 设备实测 |
 | 发行分支 | 完整镜像约 289 KB，含 README、规则文档、三个现有技能和构建资料；orphan 历史、无架构二进制、main 推送后的公开 teable 自动同步及远端内容校验 | 通过；包大小上限 512000 字节 |
 | Shell 语法 | 本机 `/bin/sh` 与仓库内 amd64 BusyBox ash 检查 shell 脚本；ash 下覆盖三个 Teable 技能的 install/update/verify/uninstall、命令 PATH 解析、幂等配置及异架构清理 | 通过；ash 下载使用本地 file:// 夹具，未在 OpenWrt 设备测试 |
-| arm64 二进制 | 上游哈希、ELF 架构和静态链接检查 | 通过静态检查；未在 arm64 主机运行 |
+| arm64 二进制 | 上游哈希、ELF 架构和静态链接检查；python3/uv/busybox 另在 iSH 真机运行实测（见下） | 通过 |
+| 自解压壳 python3/uv（arm64） | iSH 真机：125 模块导入、sqlite/ssl/ctypes/lzma/bz2/uuid/zoneinfo、multiprocessing、uv venv + pip 装 numpy/psutil + tool run cowsay、缓存与计时 | 通过 |
+| 自解压壳 python3/uv（amd64） | Alpine 沙箱：同上全链路（全量导入、uv venv/pip/cowsay、后台 http.server、边缘场景） | 通过 |
+| BusyBox 默认终端 | iSH arm64 与 Alpine amd64 replace 全循环（系统版↔工具箱 1.38 替换/还原）、Ubuntu amd64 links + 系统 busybox 替换与还原；set/unset 各连跑两次幂等 | 通过 |
+| 安装脚本幂等性 | install.sh / update.sh：常规安装、set、unset 重复执行末态一致；卸载不存在的目标成功结束 | 通过 |
 | 各目标发行版 | Alpine、Debian、OpenCloudOS、OpenWrt 等 | 未逐发行版测试 |
 
-amd64 测试在当前 Linux 主机执行。arm64 的架构选择用 mock `uname` 验证，但 arm64 程序未被执行。`uclient-fetch` 只以 mock 接口验证参数和传输流程，不能替代 OpenWrt 本机测试。BusyBox ash 测试使用仓库捆绑的 amd64 BusyBox，在 x86_64 主机验证脚本语法、PATH 解析和本地 file:// 下载流程；这不等同于 OpenWrt 设备测试。
+amd64 测试在当前 Linux 主机执行。arm64 的架构选择用 mock `uname` 验证；arm64 程序除 python3/uv/busybox 外未被执行（这三者已在 iSH 真机全链路实测）。`uclient-fetch` 只以 mock 接口验证参数和传输流程，不能替代 OpenWrt 本机测试。BusyBox ash 测试使用仓库捆绑的 amd64 BusyBox，在 x86_64 主机验证脚本语法、PATH 解析和本地 file:// 下载流程；这不等同于 OpenWrt 设备测试。
 
 ## 依赖与边界
 
