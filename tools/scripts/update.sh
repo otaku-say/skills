@@ -8,7 +8,36 @@ fail() {
   exit 1
 }
 
-[ "$#" -eq 0 ] || fail "用法：sh $0"
+usage() {
+  printf '用法：sh %s [选项]\n\n' "$0"
+  printf '  （无选项）                 校验并注册工具箱 PATH（默认行为）\n'
+  printf '  --set-default-busybox      校验注册后，将工具箱 busybox 设为默认终端：\n'
+  printf '                             Alpine 系：替换 /bin/busybox（原版备份为 /bin/busybox.pre-toolbox）\n'
+  printf '                             其他发行版：建立 applet 链接（默认 /usr/local/bin）\n'
+  printf '  --unset-default-busybox    撤销默认 busybox 设定（还原系统原版 / 移除 applet 链接）\n'
+  printf '  --busybox-links-dir=DIR    links 模式目标目录，须为绝对路径（默认 /usr/local/bin）\n'
+  printf '  --help                     显示本帮助\n'
+}
+
+SET_DEFAULT_BUSYBOX=0
+UNSET_DEFAULT_BUSYBOX=0
+BUSYBOX_LINKS_DIR=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --set-default-busybox) SET_DEFAULT_BUSYBOX=1 ;;
+    --unset-default-busybox) UNSET_DEFAULT_BUSYBOX=1 ;;
+    --busybox-links-dir=*) BUSYBOX_LINKS_DIR="${1#--busybox-links-dir=}" ;;
+    --help|-h) usage; exit 0 ;;
+    *) fail "未知参数：$1（--help 查看用法）" ;;
+  esac
+  shift
+done
+if [ "$SET_DEFAULT_BUSYBOX" -eq 1 ] && [ "$UNSET_DEFAULT_BUSYBOX" -eq 1 ]; then
+  fail "不能同时使用 --set-default-busybox 与 --unset-default-busybox"
+fi
+if [ -n "$BUSYBOX_LINKS_DIR" ]; then
+  case "$BUSYBOX_LINKS_DIR" in /*) ;; *) fail "--busybox-links-dir 必须是绝对路径" ;; esac
+fi
 [ -n "${HOME:-}" ] || fail "请先设置 HOME"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -L)"
 SKILL_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -L)"
@@ -18,6 +47,52 @@ case "$(uname -m)" in
   aarch64|arm64) HOST_ARCH=arm64; OTHER_ARCH=amd64 ;;
   *) fail "不支持的处理器架构：$(uname -m)" ;;
 esac
+
+default_busybox_mode() {
+  if [ -f /etc/alpine-release ] || { [ -L /bin/sh ] && [ "$(readlink /bin/sh)" = "/bin/busybox" ]; }; then
+    printf 'replace\n'
+  else
+    printf 'links\n'
+  fi
+}
+
+unset_default_busybox() {
+  handled=0
+  BAK=/bin/busybox.pre-toolbox
+  if [ -f "$BAK" ] && [ ! -L "$BAK" ]; then
+    "$BAK" sh -c 'exit 0' >/dev/null 2>&1 || fail "备份文件无法运行，拒绝还原：$BAK"
+    cp "$BAK" /bin/busybox || fail "无法还原 /bin/busybox（需要 root 权限）"
+    chmod 755 /bin/busybox
+    handled=1
+    printf '已还原系统原版 busybox（来源：%s）\n' "$BAK"
+    printf '  备份文件保留：%s（不再需要时可手动删除）\n' "$BAK"
+  fi
+  LINKS_DIR="${BUSYBOX_LINKS_DIR:-/usr/local/bin}"
+  if [ -d "$LINKS_DIR" ]; then
+    removed=0
+    for f in "$LINKS_DIR"/*; do
+      if [ "${f##*/}" = busybox ]; then continue; fi
+      if [ -L "$f" ]; then
+        case "$(readlink "$f")" in
+          */busybox/"$HOST_ARCH"/busybox)
+            if rm -f "$f"; then removed=$((removed + 1)); fi ;;
+        esac
+      fi
+    done
+    if [ "$removed" -gt 0 ]; then
+      handled=1
+      printf '已移除 %s 个工具箱 busybox applet 链接（%s）\n' "$removed" "$LINKS_DIR"
+    fi
+  fi
+  if [ "$handled" -eq 0 ]; then
+    printf '未发现工具箱 busybox 的默认化痕迹（检查了 %s 与 %s）\n' "$BAK" "$LINKS_DIR"
+  fi
+}
+
+if [ "$UNSET_DEFAULT_BUSYBOX" -eq 1 ]; then
+  unset_default_busybox
+  exit 0
+fi
 
 hash_file() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -247,5 +322,107 @@ add_path_block "$HOME/.bashrc"
 add_path_block "$HOME/.bash_profile"
 add_path_block "$HOME/.zshrc"
 
+set_default_busybox() {
+  BIN="$PAYLOAD_ROOT/busybox/$HOST_ARCH/busybox"
+  [ -f "$BIN" ] && [ -x "$BIN" ] || fail "工具箱缺少 $HOST_ARCH 版 busybox：$BIN"
+  "$BIN" sh -c 'exit 0' >/dev/null 2>&1 || fail "工具箱 busybox 无法在本机运行（架构或内核不兼容）：$BIN"
+  BB_DESC="$("$BIN" 2>/dev/null | head -n 1)"
+  [ -n "$BB_DESC" ] || BB_DESC="工具箱 busybox"
+
+  mode="$(default_busybox_mode)"
+  if [ "$mode" = replace ]; then
+    SYS_BB=/bin/busybox
+    BAK=/bin/busybox.pre-toolbox
+    [ -f "$SYS_BB" ] || fail "系统缺少 $SYS_BB，无法使用 replace 模式"
+    [ ! -L "$SYS_BB" ] || fail "拒绝操作符号链接：$SYS_BB"
+    bin_sha="$(hash_file "$BIN")"
+    sys_sha="$(hash_file "$SYS_BB")"
+    if [ "$bin_sha" = "$sys_sha" ]; then
+      printf '默认 busybox 已是工具箱版本，无需处理（%s）\n' "$SYS_BB"
+      return 0
+    fi
+    if [ -f "$BAK" ] && [ ! -L "$BAK" ]; then
+      bak_sha="$(hash_file "$BAK")"
+      if [ "$bak_sha" = "$bin_sha" ]; then
+        cp "$SYS_BB" "$BAK" || fail "无法更新备份：$BAK"
+        chmod 755 "$BAK"
+        printf '检测到备份内容为工具箱版本，已重新备份系统原版\n'
+      fi
+    else
+      cp "$SYS_BB" "$BAK" || fail "无法备份系统 busybox（需要 root 权限）：$BAK"
+      chmod 755 "$BAK"
+      printf '系统原版 busybox 已备份：%s\n' "$BAK"
+    fi
+    cp "$BIN" "$SYS_BB" || fail "无法替换 $SYS_BB（需要 root 权限）"
+    chmod 755 "$SYS_BB"
+    if ! "$SYS_BB" sh -c 'exit 0' >/dev/null 2>&1; then
+      cp "$BAK" "$SYS_BB" >/dev/null 2>&1 || printf '警告：回滚失败，请手动恢复：cp %s %s\n' "$BAK" "$SYS_BB" >&2
+      chmod 755 "$SYS_BB" 2>/dev/null || :
+      fail "新 busybox 验证失败，已尝试回滚（备份：$BAK）"
+    fi
+    printf '默认 busybox 已切换为工具箱版本（replace 模式）\n'
+    printf '  版本：%s\n' "$BB_DESC"
+    printf '  系统原版备份：%s\n' "$BAK"
+    printf '  还原命令：sh %s --unset-default-busybox\n' "$0"
+  else
+    LINKS_DIR="${BUSYBOX_LINKS_DIR:-/usr/local/bin}"
+    if [ ! -d "$LINKS_DIR" ]; then
+      mkdir -p "$LINKS_DIR" || fail "无法创建目录：$LINKS_DIR（需要 root 权限）"
+    fi
+    [ -w "$LINKS_DIR" ] || fail "目录不可写：$LINKS_DIR（请用 root/sudo 运行，或用 --busybox-links-dir 指定其他目录）"
+    "$BIN" --list > "$TMP/busybox-applets" 2>/dev/null || fail "无法获取 busybox applet 列表"
+    created=0; updated=0; skipped=0; conflicts=0; conflict_list=""
+    while IFS= read -r applet || [ -n "$applet" ]; do
+      if [ -z "$applet" ]; then continue; fi
+      if [ "$applet" = busybox ]; then continue; fi
+      dest="$LINKS_DIR/$applet"
+      if [ -L "$dest" ]; then
+        target="$(readlink "$dest")"
+        if [ "$target" = "$BIN" ]; then
+          skipped=$((skipped + 1))
+          continue
+        fi
+        case "$target" in
+          */busybox/"$HOST_ARCH"/busybox)
+            ln -sfn "$BIN" "$dest" || fail "无法更新链接：$dest"
+            updated=$((updated + 1))
+            continue ;;
+        esac
+        conflicts=$((conflicts + 1))
+        conflict_list="$conflict_list $applet"
+        continue
+      fi
+      if [ -e "$dest" ]; then
+        conflicts=$((conflicts + 1))
+        conflict_list="$conflict_list $applet"
+        continue
+      fi
+      ln -s "$BIN" "$dest" || fail "无法创建链接：$dest"
+      created=$((created + 1))
+    done < "$TMP/busybox-applets"
+    printf '默认 busybox 已设为工具箱版本（links 模式）\n'
+    printf '  版本：%s\n' "$BB_DESC"
+    printf '  目标目录：%s（新建 %s / 更新 %s / 跳过 %s / 冲突 %s）\n' "$LINKS_DIR" "$created" "$updated" "$skipped" "$conflicts"
+    if [ "$conflicts" -gt 0 ]; then
+      printf '  冲突 applet（保留原文件）：%s\n' "$(printf '%s' "$conflict_list" | cut -c1-160)"
+    fi
+    if case ":${PATH:-}:" in *":$LINKS_DIR:"*) true ;; *) false ;; esac; then
+      printf '  已位于 PATH：%s\n' "$LINKS_DIR"
+    else
+      printf '  注意：%s 不在当前 PATH 中，请检查 shell 配置\n' "$LINKS_DIR"
+    fi
+    if [ "$LINKS_DIR" = /usr/local/bin ]; then
+      printf '  还原命令：sh %s --unset-default-busybox\n' "$0"
+    else
+      printf '  还原命令：sh %s --unset-default-busybox --busybox-links-dir=%s\n' "$0" "$LINKS_DIR"
+    fi
+  fi
+}
+
 printf '校验并注册了 %s 个工具，架构：%s，二进制位置：%s\n' "$TOOL_COUNT" "$HOST_ARCH" "$PAYLOAD_ROOT"
 printf 'PATH 已动态配置；更新技能包后再次运行 scripts/install.sh 以清除重新带入的异架构文件。\n'
+printf '如需将工具箱 busybox 设为默认终端，运行：sh %s --set-default-busybox\n' "$0"
+
+if [ "$SET_DEFAULT_BUSYBOX" -eq 1 ]; then
+  set_default_busybox
+fi
