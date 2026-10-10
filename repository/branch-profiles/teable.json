@@ -9,5 +9,8 @@
     "runtimeSourceBranch": "main",
     "archDirectoryNames": ["amd64", "arm64"]
   },
+  "skillOverrides": {
+    "tools": "repository/branch-profiles/teable/SKILL.md.in"
+  },
   "history": "orphan"
 }

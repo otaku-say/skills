@@ -51,6 +51,21 @@ for PROFILE in "$PROFILE_DIR"/*.json; do
       SKILL_COUNT=$((SKILL_COUNT + 1))
     done
     [ "$SKILL_COUNT" -gt 0 ] || { printf '完整镜像中没有顶层技能。\n' >&2; exit 1; }
+    OVERRIDE_LIST="$(jq -r '(.skillOverrides // {}) | to_entries[] | [.key, .value] | @tsv' "$PROFILE")"
+    if [ -n "$OVERRIDE_LIST" ]; then
+      printf '%s\n' "$OVERRIDE_LIST" | while IFS="$(printf '\t')" read -r SKILL_NAME TEMPLATE; do
+        [ -n "$SKILL_NAME" ] || continue
+        case "$SKILL_NAME" in *[!a-z0-9-]*|'') printf '覆盖技能名无效：%s\n' "$SKILL_NAME" >&2; exit 1 ;; esac
+        case "$TEMPLATE" in /*|..|../*|*/../*|*/..) printf '覆盖模板路径无效：%s\n' "$TEMPLATE" >&2; exit 1 ;; esac
+        [ -f "$ROOT/$SKILL_NAME/SKILL.md" ] \
+          || { printf '覆盖目标不是顶层技能：%s\n' "$SKILL_NAME" >&2; exit 1; }
+        [ -f "$ROOT/$TEMPLATE" ] \
+          || { printf '覆盖模板不存在：%s\n' "$TEMPLATE" >&2; exit 1; }
+        TEMPLATE_NAME="$(awk -F: '$1 == "name" {sub(/^[^:]*:[[:space:]]*/, ""); print; exit}' "$ROOT/$TEMPLATE")"
+        [ "$TEMPLATE_NAME" = "$SKILL_NAME" ] \
+          || { printf '覆盖模板技能名不匹配：%s\n' "$TEMPLATE" >&2; exit 1; }
+      done
+    fi
   else
     SKILL_PATH="$(jq -er '.skillPath | strings | select(length > 0)' "$PROFILE")"
     TEMPLATE="$(jq -er '.skillTemplate | strings | select(length > 0)' "$PROFILE")"
@@ -67,6 +82,13 @@ for PROFILE in "$PROFILE_DIR"/*.json; do
   if [ "$BRANCH" = teable ]; then
     [ "$MIRROR_TREE" = true ] && [ "$MAX_BYTES" -le 512000 ] \
       || { printf 'Teable profile 必须完整镜像且小于等于 512000 字节。\n' >&2; exit 1; }
+    TOOLS_TEMPLATE="$(jq -r '.skillOverrides.tools // empty' "$PROFILE")"
+    [ -n "$TOOLS_TEMPLATE" ] \
+      || { printf 'Teable profile 必须提供 tools 技能专用入口。\n' >&2; exit 1; }
+    if grep -Eiq -e '--set-default-busybox|/bin/busybox|sudo' "$ROOT/$TOOLS_TEMPLATE"; then
+      printf 'Teable tools 入口不得引导替换系统 BusyBox 或使用提权命令。\n' >&2
+      exit 1
+    fi
   fi
   COUNT=$((COUNT + 1))
   printf '通过分支 profile：%s\n' "$BRANCH"
