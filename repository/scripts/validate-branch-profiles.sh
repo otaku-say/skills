@@ -66,6 +66,23 @@ for PROFILE in "$PROFILE_DIR"/*.json; do
           || { printf '覆盖模板技能名不匹配：%s\n' "$TEMPLATE" >&2; exit 1; }
       done
     fi
+    FILE_OVERRIDE_LIST="$(jq -r '(.fileOverrides // {}) | to_entries[] | [.key, .value] | @tsv' "$PROFILE")"
+    if [ -n "$FILE_OVERRIDE_LIST" ]; then
+      printf '%s\n' "$FILE_OVERRIDE_LIST" | while IFS="$(printf '\t')" read -r TARGET TEMPLATE; do
+        [ -n "$TARGET" ] || continue
+        case "$TARGET" in /*|..|../*|*/../*|*/..|*//*) printf '覆盖目标路径无效：%s\n' "$TARGET" >&2; exit 1 ;; esac
+        case "$TARGET" in */*) ;; *) printf '覆盖目标必须位于技能目录：%s\n' "$TARGET" >&2; exit 1 ;; esac
+        SKILL_NAME="${TARGET%%/*}"
+        case "$SKILL_NAME" in *[!a-z0-9-]*|'') printf '覆盖目标技能名无效：%s\n' "$TARGET" >&2; exit 1 ;; esac
+        case "$TEMPLATE" in /*|..|../*|*/../*|*/..) printf '覆盖模板路径无效：%s\n' "$TEMPLATE" >&2; exit 1 ;; esac
+        [ -f "$ROOT/$SKILL_NAME/SKILL.md" ] \
+          || { printf '覆盖目标不是顶层技能：%s\n' "$SKILL_NAME" >&2; exit 1; }
+        [ -f "$ROOT/$TARGET" ] && [ ! -L "$ROOT/$TARGET" ] \
+          || { printf '覆盖目标不存在或是符号链接：%s\n' "$TARGET" >&2; exit 1; }
+        [ -f "$ROOT/$TEMPLATE" ] && [ ! -L "$ROOT/$TEMPLATE" ] \
+          || { printf '覆盖模板不存在或是符号链接：%s\n' "$TEMPLATE" >&2; exit 1; }
+      done
+    fi
   else
     SKILL_PATH="$(jq -er '.skillPath | strings | select(length > 0)' "$PROFILE")"
     TEMPLATE="$(jq -er '.skillTemplate | strings | select(length > 0)' "$PROFILE")"
@@ -83,12 +100,16 @@ for PROFILE in "$PROFILE_DIR"/*.json; do
     [ "$MIRROR_TREE" = true ] && [ "$MAX_BYTES" -le 512000 ] \
       || { printf 'Teable profile 必须完整镜像且小于等于 512000 字节。\n' >&2; exit 1; }
     TOOLS_TEMPLATE="$(jq -r '.skillOverrides.tools // empty' "$PROFILE")"
-    [ -n "$TOOLS_TEMPLATE" ] \
-      || { printf 'Teable profile 必须提供 tools 技能专用入口。\n' >&2; exit 1; }
-    if grep -Eiq -e '--set-default-busybox|/bin/busybox|sudo' "$ROOT/$TOOLS_TEMPLATE"; then
-      printf 'Teable tools 入口不得引导替换系统 BusyBox 或使用提权命令。\n' >&2
-      exit 1
-    fi
+    TOOLS_UPDATE_TEMPLATE="$(jq -r '.fileOverrides["tools/scripts/update.sh"] // empty' "$PROFILE")"
+    BUSYBOX_USAGE_TEMPLATE="$(jq -r '.fileOverrides["tools/busybox/USAGE.md"] // empty' "$PROFILE")"
+    [ -n "$TOOLS_TEMPLATE" ] && [ -n "$TOOLS_UPDATE_TEMPLATE" ] && [ -n "$BUSYBOX_USAGE_TEMPLATE" ] \
+      || { printf 'Teable profile 必须提供 tools 技能及安全文件覆盖。\n' >&2; exit 1; }
+    for TEABLE_TEMPLATE in "$TOOLS_TEMPLATE" "$TOOLS_UPDATE_TEMPLATE" "$BUSYBOX_USAGE_TEMPLATE"; do
+      if grep -Eiq -e '--set-default-busybox|/bin/busybox|sudo' "$ROOT/$TEABLE_TEMPLATE"; then
+        printf 'Teable tools 覆盖模板不得包含系统 BusyBox 替换或提权指引：%s\n' "$TEABLE_TEMPLATE" >&2
+        exit 1
+      fi
+    done
   fi
   COUNT=$((COUNT + 1))
   printf '通过分支 profile：%s\n' "$BRANCH"

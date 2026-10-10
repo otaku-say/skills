@@ -59,6 +59,43 @@ if [ "$MIRROR_TREE" = true ]; then
       cp "$OUTPUT_DIR/$template" "$OUTPUT_DIR/$skill_name/SKILL.md"
     done
   fi
+  FILE_OVERRIDE_LIST="$(jq -r '(.fileOverrides // {}) | to_entries[] | [.key, .value] | @tsv' "$PROFILE")"
+  if [ -n "$FILE_OVERRIDE_LIST" ]; then
+    printf '%s\n' "$FILE_OVERRIDE_LIST" | while IFS="$(printf '\t')" read -r target template; do
+      [ -n "$target" ] || continue
+      case "$target" in /*|..|../*|*/../*|*/..|*//*) printf '覆盖目标路径无效：%s\n' "$target" >&2; exit 1 ;; esac
+      case "$target" in */*) ;; *) printf '覆盖目标必须位于技能目录：%s\n' "$target" >&2; exit 1 ;; esac
+      skill_name="${target%%/*}"
+      case "$skill_name" in *[!a-z0-9-]*|'') printf '覆盖目标技能名无效：%s\n' "$target" >&2; exit 1 ;; esac
+      case "$template" in /*|..|../*|*/../*|*/..) printf '覆盖模板路径无效：%s\n' "$template" >&2; exit 1 ;; esac
+      [ -f "$OUTPUT_DIR/$skill_name/SKILL.md" ] \
+        || { printf '覆盖目标不是技能：%s\n' "$skill_name" >&2; exit 1; }
+      [ ! -L "$OUTPUT_DIR/$target" ] && [ -f "$OUTPUT_DIR/$target" ] \
+        || { printf '覆盖目标文件不存在或是符号链接：%s\n' "$target" >&2; exit 1; }
+      [ ! -L "$OUTPUT_DIR/$template" ] && [ -f "$OUTPUT_DIR/$template" ] \
+        || { printf '覆盖模板不存在或是符号链接：%s\n' "$template" >&2; exit 1; }
+      cp "$OUTPUT_DIR/$template" "$OUTPUT_DIR/$target"
+    done
+  fi
+  if [ "$BRANCH" = teable ] && [ -d "$OUTPUT_DIR/tools" ]; then
+    if grep -ERIl -e '--set-default-busybox|/bin/busybox|sudo' "$OUTPUT_DIR/tools"; then
+      printf 'Teable tools 包含不允许的系统 BusyBox 替换或提权指引。\n' >&2
+      exit 1
+    fi
+  fi
+  for skill_dir in "$OUTPUT_DIR"/*; do
+    [ -f "$skill_dir/DOCS.sha256" ] || continue
+    docs_tmp="$skill_dir/.DOCS.sha256"
+    : > "$docs_tmp"
+    for usage in "$skill_dir"/*/USAGE.md; do
+      [ -f "$usage" ] || continue
+      relative="${usage#"$skill_dir"/}"
+      printf '%s  %s\n' "$(sha256sum "$usage" | awk '{print $1}')" "$relative" >> "$docs_tmp"
+    done
+    [ -s "$docs_tmp" ] || { printf '%s 的文档清单为空。\n' "${skill_dir##*/}" >&2; exit 1; }
+    sort -k2,2 "$docs_tmp" > "$skill_dir/DOCS.sha256"
+    rm -f "$docs_tmp"
+  done
 
   verify_arch_manifests() {
     skill_dir="$1"
@@ -123,6 +160,9 @@ if [ "$MIRROR_TREE" = true ]; then
       done
     fi
     SKILL_COUNT=$((SKILL_COUNT + 1))
+    if [ "$BRANCH" = teable ] && [ "$skill_name" = tools ]; then
+      sh "$skill_dir/scripts/verify.sh" --metadata-only
+    fi
     find "$skill_dir/scripts" -type f -name '*.sh' -exec sh -n {} \; \
       || { printf '%s 包含语法错误的维护脚本。\n' "$skill_name" >&2; exit 1; }
   done
