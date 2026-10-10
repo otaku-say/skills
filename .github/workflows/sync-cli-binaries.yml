@@ -58,10 +58,15 @@ jobs:
 
           if git diff --cached --quiet; then
             echo '上游二进制未变化，无需提交。'
-            exit 0
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m '同步上游 CLI 双架构二进制'
+            git push origin HEAD:main
           fi
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m '同步上游 CLI 双架构二进制'
-          git push origin HEAD:main
+      - name: 发布同步后的兼容分支
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh repository/scripts/publish-agent-branches.sh --push
