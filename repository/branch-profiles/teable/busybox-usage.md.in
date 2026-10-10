@@ -1,0 +1,32 @@
+# busybox
+
+BusyBox 是一个静态多调用工具，提供 `ls`、`cat`、`grep`、`find`、`tar`、`wget` 等 applet。Teable 版运行时通过当前架构的工具目录提供 `busybox` 命令。
+
+## 调用方式
+
+```sh
+busybox --list
+busybox ls -la
+busybox grep "pattern" file.txt
+busybox find . -name "*.txt"
+busybox tar tf archive.tar
+busybox sh
+```
+
+通过 `busybox <applet>` 调用 applet。实际可用项以 `busybox --list` 为准；各 applet 的参数可用 `busybox <applet> --help` 查看。
+
+## 常用 applet
+
+| 类别 | 代表命令 |
+|---|---|
+| 文件操作 | `ls` `cat` `cp` `mv` `rm` `mkdir` `ln` `touch` `chmod` `stat` |
+| 文本处理 | `grep` `sed` `awk` `cut` `sort` `uniq` `head` `tail` `wc` `diff` `patch` |
+| 文件查找 | `find` `which` `pgrep` `pidof` |
+| 压缩解压 | `tar` `gzip` `bzip2` `xz` `lzma` `unzip` `cpio` |
+| 网络工具 | `wget` `nc` `tftp` `ftpget` `telnet` `whois` `ping` `traceroute` `nslookup` |
+| 进程管理 | `ps` `top` `kill` `killall` `nohup` `timeout` `watch` `lsof` |
+| 系统信息 | `df` `du` `free` `uptime` `dmesg` `vmstat` `lsblk` `lsusb` |
+| 编辑与 shell | `vi` `ed` `hexedit` `sh` `hush` |
+| 计算与校验 | `expr` `bc` `dc` `seq` `sha256sum` `md5sum` `crc32` `base64` |
+
+BusyBox applet 的选项和行为可能与 GNU 或独立工具略有不同。需要额外功能或不同参数时，查阅相应工具的 `USAGE.md`。

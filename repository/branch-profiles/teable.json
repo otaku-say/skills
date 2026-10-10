@@ -12,5 +12,9 @@
   "skillOverrides": {
     "tools": "repository/branch-profiles/teable/SKILL.md.in"
   },
+  "fileOverrides": {
+    "tools/scripts/update.sh": "repository/branch-profiles/teable/tools-update.sh.in",
+    "tools/busybox/USAGE.md": "repository/branch-profiles/teable/busybox-usage.md.in"
+  },
   "history": "orphan"
 }
