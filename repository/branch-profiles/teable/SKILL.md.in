@@ -1,42 +1,47 @@
 ---
 name: tools
 description: >-
-  在 Teable Agent 中使用 ish-toolbox 工具集，或查找 rg、jaq、python3、ssh、curl 等命令的用法。运行时二进制由安装脚本从受校验的 main 提交下载，不包含在技能安装包内。
+  在 Teable Agent 的 Linux 沙箱中安装、更新、校验和使用 ish-toolbox 命令行工具，或查询 rg、jaq、python3、ssh、curl 等命令的参数与用法。
 compatibility: >-
-  目标环境为 Alpine、Debian、OpenCloudOS 和 OpenWrt 上的 Linux amd64/x86_64、arm64/aarch64。安装需要访问 GitHub 下载运行时，使用 curl、wget 或 OpenWrt uclient-fetch，并使用 sha256sum、BusyBox sha256sum 或 openssl 校验。本轮仅在本机 POSIX /bin/sh 测试，未在 BusyBox ash 或 OpenWrt 设备验证。
+  支持 Linux amd64/x86_64 与 arm64/aarch64 的 Alpine、Debian、OpenCloudOS；OpenWrt 仅限这两个架构。安装需 curl、wget 或 uclient-fetch 之一下载运行时，并需 sha256sum、BusyBox sha256sum 或 openssl 校验。
 ---
 
-# ish-toolbox Teable 版
+# ish-toolbox
 
-这是为单独构建 `tools` 轻量技能包保留的兼容模板。当前完整 Teable 分支直接镜像 main 的 `tools/SKILL.md`，只剔除架构二进制；运行时按 `RUNTIME_SOURCE_COMMIT` 下载当前架构文件到 `${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}/ish-toolbox/<main-commit>/`，并校验 SHA256。默认运行时目录位于持久 workspace 下；显式设置 `TEABLE_SKILLS_RUNTIME_HOME` 时必须指向持久目录。安装脚本不得写入只读技能目录，也不得复制或移动技能文件。
+该技能将工具箱中的命令作为一个整体管理。各工具的参数和平台注意事项见对应的 `tools/<tool>/USAGE.md`，逐工具说明不是独立技能。
 
 ## 安装与更新
 
-在 Teable 中安装 `teable` 分支的 `tools` 技能后运行：
+从 Teable `teable` 分支安装技能后，运行：
 
 ```sh
 sh /path/to/installed/tools/scripts/install.sh
 sh /path/to/installed/tools/scripts/verify.sh
 ```
 
-技能路径由安装环境决定，不要把示例路径写进脚本。更新技能说明后，先用 Teable 的技能管理方式更新技能，再运行：
+安装会下载并校验当前架构的运行时，将工具目录加入 shell PATH。运行时默认保存在持久 workspace 的 `${TEABLE_SKILLS_RUNTIME_HOME:-$HOME/workspace/.cache/otaku-skills-runtime}` 中，不写入只读技能目录。安装不需要 root，也不会修改系统 shell 或系统 BusyBox。
+
+更新技能说明或脚本后，先通过 Teable 技能管理器更新技能，再运行 `install.sh`。单独更新工具运行时则运行：
 
 ```sh
 sh /path/to/installed/tools/scripts/update.sh
+sh /path/to/installed/tools/scripts/verify.sh
 ```
 
-运行时下载固定到此技能包声明的 main commit，只下载当前架构并按对应 SHA256 清单校验。下载失败或校验不通过时，不会把未校验文件加入 PATH。arm64 依据 amd64 实测和 arm64 静态检查默认兼容，但没有 arm64 运行时测试。
+重复安装和更新不会添加重复的 PATH 配置。重新打开 shell 或重新加载 shell 配置后，可直接调用工具，例如 `rg --version`、`jaq --version`、`python3 --version`。
 
-## 使用与卸载
+## 卸载
 
-重新打开 shell 或重新加载 shell 配置后，可直接按命令名调用，例如 `rg --version`、`jaq --version`、`python3 --version`。PATH 只加入当前主机架构对应的工具目录。
-
-移除 PATH 配置：
+默认仅移除此技能管理的 PATH 配置，保留技能文件和运行时；运行卸载脚本清理 PATH：
 
 ```sh
 sh /path/to/installed/tools/scripts/uninstall.sh
 ```
 
-此操作保留技能文件和运行时二进制。明确要清理当前 Teable 版本下载的运行时目录时，使用 `--purge-runtime`；随后再通过 Teable 技能管理器卸载技能。
+如需删除工具箱管理的全部版本化运行时目录，运行：
 
-各工具参数见对应 `<tool>/USAGE.md`；兼容性和验证范围见 `references/compatibility-tests.md`。
+```sh
+sh /path/to/installed/tools/scripts/uninstall.sh --yes --purge-runtime
+```
+
+之后再通过 Teable 技能管理器卸载本地技能。各工具用法见对应 `tools/<tool>/USAGE.md`；兼容性与验证范围见 `references/compatibility-tests.md`。

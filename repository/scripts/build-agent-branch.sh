@@ -46,6 +46,19 @@ if [ "$MIRROR_TREE" = true ]; then
   for required in README.md AGENTS.md CONTRIBUTING.md; do
     [ -f "$OUTPUT_DIR/$required" ] || { printf '完整镜像缺少 %s。\n' "$required" >&2; exit 1; }
   done
+  OVERRIDE_LIST="$(jq -r '(.skillOverrides // {}) | to_entries[] | [.key, .value] | @tsv' "$PROFILE")"
+  if [ -n "$OVERRIDE_LIST" ]; then
+    printf '%s\n' "$OVERRIDE_LIST" | while IFS="$(printf '\t')" read -r skill_name template; do
+      [ -n "$skill_name" ] || continue
+      case "$skill_name" in *[!a-z0-9-]*|'') printf '覆盖技能名无效：%s\n' "$skill_name" >&2; exit 1 ;; esac
+      case "$template" in /*|..|../*|*/../*|*/..) printf '覆盖模板路径无效：%s\n' "$template" >&2; exit 1 ;; esac
+      [ -f "$OUTPUT_DIR/$skill_name/SKILL.md" ] \
+        || { printf '覆盖目标不是技能：%s\n' "$skill_name" >&2; exit 1; }
+      [ -f "$OUTPUT_DIR/$template" ] \
+        || { printf '覆盖模板不存在：%s\n' "$template" >&2; exit 1; }
+      cp "$OUTPUT_DIR/$template" "$OUTPUT_DIR/$skill_name/SKILL.md"
+    done
+  fi
 
   verify_arch_manifests() {
     skill_dir="$1"
@@ -155,7 +168,7 @@ verify_arch() {
     case "$relative" in /*|..|../*|*/../*|*/..|*//*) printf '清单路径无效：%s\n' "$relative" >&2; return 1 ;; esac
     case "$relative" in */"$arch"/*) ;; *) printf '清单含错误架构路径：%s\n' "$relative" >&2; return 1 ;; esac
     file="$SOURCE_ROOT/$SKILL_PATH/$relative"
-    [ -f "$file" ] && [ -x "$file" ] || { printf '源二进制缺失或不可执行：%s\n' "$relative" >&2; return 1; }
+    [ -f "$file" ] && [ -x "$file" ] || { printf '源二进制缺失或不可执行：%s\n' "$file" >&2; return 1; }
     [ "$(hash_file "$file")" = "$expected" ] || { printf '源二进制 SHA256 不匹配：%s\n' "$relative" >&2; return 1; }
     count=$((count + 1))
   done < "$manifest"
