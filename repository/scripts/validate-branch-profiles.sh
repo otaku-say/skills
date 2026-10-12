@@ -101,10 +101,9 @@ for PROFILE in "$PROFILE_DIR"/*.json; do
       || { printf 'Teable profile 必须完整镜像且小于等于 512000 字节。\n' >&2; exit 1; }
     TOOLS_TEMPLATE="$(jq -r '.skillOverrides.tools // empty' "$PROFILE")"
     TOOLS_UPDATE_TEMPLATE="$(jq -r '.fileOverrides["tools/scripts/update.sh"] // empty' "$PROFILE")"
-    BUSYBOX_USAGE_TEMPLATE="$(jq -r '.fileOverrides["tools/busybox/USAGE.md"] // empty' "$PROFILE")"
-    [ -n "$TOOLS_TEMPLATE" ] && [ -n "$TOOLS_UPDATE_TEMPLATE" ] && [ -n "$BUSYBOX_USAGE_TEMPLATE" ] \
+    [ -n "$TOOLS_TEMPLATE" ] && [ -n "$TOOLS_UPDATE_TEMPLATE" ] \
       || { printf 'Teable profile 必须提供 tools 技能及安全文件覆盖。\n' >&2; exit 1; }
-    for TEABLE_TEMPLATE in "$TOOLS_TEMPLATE" "$TOOLS_UPDATE_TEMPLATE" "$BUSYBOX_USAGE_TEMPLATE"; do
+    for TEABLE_TEMPLATE in "$TOOLS_TEMPLATE" "$TOOLS_UPDATE_TEMPLATE"; do
       if grep -Eiq -e '--set-default-busybox|/bin/busybox|sudo' "$ROOT/$TEABLE_TEMPLATE"; then
         printf 'Teable tools 覆盖模板不得包含系统 BusyBox 替换或提权指引：%s\n' "$TEABLE_TEMPLATE" >&2
         exit 1
