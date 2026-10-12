@@ -85,6 +85,25 @@ remove_path_block "$HOME/.bashrc"
 remove_path_block "$HOME/.bash_profile"
 remove_path_block "$HOME/.zshrc"
 
+# 移除非交互 shell 可见性兜底链接（install.sh 建立；只清理指向本工具箱的软链）
+remove_visibility_links() {
+  removed=0
+  for dir in /usr/local/bin /opt/bin; do
+    [ -d "$dir" ] && [ -w "$dir" ] || continue
+    for f in "$dir"/*; do
+      [ -L "$f" ] || continue
+      target="$(readlink "$f" 2>/dev/null || true)"
+      case "$target" in
+        "$SKILL_DIR"/*|*/ish-toolbox/*) rm -f "$f" && removed=$((removed + 1)) ;;
+      esac
+    done
+  done
+  if [ "$removed" -gt 0 ]; then
+    printf '已移除 %s 个非交互可见性链接（/usr/local/bin、/opt/bin）。\n' "$removed"
+  fi
+}
+remove_visibility_links
+
 if [ "$PURGE_RUNTIME" -eq 1 ] && [ -d "$RUNTIME_ROOT" ]; then
   for runtime_dir in "$RUNTIME_ROOT"/*; do
     [ -e "$runtime_dir" ] || continue
@@ -93,4 +112,3 @@ if [ "$PURGE_RUNTIME" -eq 1 ] && [ -d "$RUNTIME_ROOT" ]; then
   rmdir "$RUNTIME_ROOT" 2>/dev/null || true
 fi
 printf '已清理工具箱 PATH 配置。\n'
-printf '提示：如曾设定默认 busybox，可运行 scripts/install.sh --unset-default-busybox 还原系统原状。\n'

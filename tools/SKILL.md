@@ -1,7 +1,7 @@
 ---
 name: tools
 description: >-
-  在 Teable Agent 的 Linux 沙箱中安装、更新、校验和使用 ish-toolbox 命令行工具，或查询 rg、jaq、python3、ssh、curl 等命令的参数与用法。
+  在 Teable Agent 的 Linux 沙箱中安装、更新、校验和使用 ish-toolbox 命令行工具（43 件静态增强工具），或查询 rg、jaq、fd、sd、gawk、yq 等命令的参数与用法。
 compatibility: >-
   支持 Linux amd64/x86_64 与 arm64/aarch64 的 Alpine、Debian、OpenCloudOS；OpenWrt 仅限这两个架构。安装需 curl、wget 或 uclient-fetch 之一下载运行时，并需 sha256sum 或 openssl 校验。
 ---
@@ -28,7 +28,7 @@ sh /path/to/installed/tools/scripts/update.sh
 sh /path/to/installed/tools/scripts/verify.sh
 ```
 
-重复安装和更新不会添加重复的 PATH 配置。重新打开 shell 或重新加载 shell 配置后，可直接调用工具，例如 `rg --version`、`jaq --version`、`python3 --version`。
+重复安装和更新不会添加重复的 PATH 配置。重新打开 shell 或重新加载 shell 配置后，可直接调用工具，例如 `rg --version`、`jaq --version`、`gawk --version`。
 
 ## 卸载
 
